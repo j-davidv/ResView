@@ -65,3 +65,24 @@ jobs:
           SUPABASE_STORAGE_HOST: erlnuyltaudetjpriosu.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m worker.main --config worker/config.json --live-sources --delivery disabled
+      - name: Diagnose public source connectivity after failure
+        if: failure()
+        run: |
+          python - <<'PY'
+          import ipaddress
+          import os
+          import socket
+          from worker.source import _request
+          print('Proxy environment present:', any(os.environ.get(k) for k in ('HTTPS_PROXY', 'HTTP_PROXY', 'ALL_PROXY')))
+          for host in ('www.prc.gov.ph', 'prc.gov.ph'):
+              addresses = sorted({r[4][0] for r in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)})
+              print(host, 'public DNS:', addresses)
+              for address in addresses:
+                  if not ipaddress.ip_address(address).is_global:
+                      continue
+                  try:
+                      status, _, _ = _request('https://' + host + '/robots.txt', address, 262144, 10)
+                      print(host, address, 'HTTP', status)
+                  except Exception as error:
+                      print(host, address, type(error).__name__)
+          PY
