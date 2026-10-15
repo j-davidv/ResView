@@ -1,0 +1,11 @@
+# Prepared unattended deployment
+
+The worker is implemented and manually exercised against the existing live Firebase project. Repository publication and creation of a persistent CI identity are separate from those workstation checks. No such deployment has occurred.
+
+Proposed publication is limited to `worker/` (Python source, synthetic tests, config, requirements, README), `.github/workflows/monitor.yml`, `.gitignore`, and `docs/source-access.md`, `docs/format-validation.md`, `docs/provider-setup.md`, plus this review. No existing untracked application/IDE files, local responses, credentials, original PDFs, real names or private exports are included. The local Flutter changes can be reviewed independently in `app/lib/domain/models.dart`, `app/lib/data/firestore_repository.dart` and `app/test/contracts_test.dart`.
+
+The proposed Google identity is a dedicated metadata worker for `resview-9240c`, authenticated through GitHub OIDC for `j-davidv/ResView`, branch `main`, workflow `.github/workflows/monitor.yml`. It needs Firestore get/list/create/update and transactional commit permissions; it does not need FCM, Auth administration, billing, project administration, Storage or Brevo credentials while name profiles/delivery are disabled. IAM cannot scope these Firestore permissions to public collections, so a persistent identity would also have access to private Firestore documents. This is the material security decision before provisioning. No role/identity/trust grant has been created.
+
+After a successful manual GitHub run, enable `PRC_MONITOR_ENABLED=true` and verify an actual scheduled run. Keep all extraction profiles disabled and delivery disabled. This enables twice-hourly metadata polling only; it cannot make a source-disabled name-list download available.
+
+Verification in this turn: 32 worker tests, 28 Flutter tests and Flutter analyzer pass; populated unauthenticated live queries/private denials and repeat-scan record counts pass. A fresh review found and tested fixes for per-selection freshness, document-change revocation, immutable provenance, retired sittings and document/redirect robots restrictions. Real PDF extraction, Supabase transfer, physical-device behavior and scheduled execution remain unverified.

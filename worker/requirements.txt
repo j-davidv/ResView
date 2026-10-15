@@ -1,0 +1,2 @@
+google-cloud-firestore>=2.21,<3
+pypdf>=6,<7

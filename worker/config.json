@@ -1,0 +1,13 @@
+{
+  "delivery": "disabled",
+  "sourcePolicy": {
+    "accessAuthorization": "Owner instructed public PRC access on 2026-10-15 without a separate permission approval.",
+    "routes": {
+      "www.prc.gov.ph": ["/robots.txt", "/articles/exam-results", "/article/", "/2026-schedule-examination", "/sites/default/files/"],
+      "prc.gov.ph": ["/robots.txt", "/articles/exam-results", "/article/", "/2026-schedule-examination", "/sites/default/files/"]
+    }
+  },
+  "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+  "resultsUrl": "https://www.prc.gov.ph/articles/exam-results",
+  "profiles": {}
+}
