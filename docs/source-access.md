@@ -13,4 +13,6 @@ The Foresters article directly links [its successful-examinee list](https://driv
 
 Actual metadata was imported into the existing Firebase project. Populated unauthenticated queries verified the Foresters catalog, correct sitting date, publication, unavailable-checking fallback and scan health. Private reads remain denied. Repeated scans retained five publication/current-version records without duplicates. No original/derived name list was uploaded and no entered name or personal outcome was collected. Raw responses remain ignored under `.development/`.
 
-The latest feed is not evidence of absence for historical sittings. Freshness belongs to each successfully fetched selection; an unrelated scan cannot renew it. No checking profile is enabled. Unattended scheduling still needs [deployment](provider-setup.md).
+The latest feed is not evidence of absence for historical sittings. Freshness belongs to each successfully fetched selection; an unrelated scan cannot renew it. No checking profile is enabled.
+
+Cloud deployment check (2026-10-15): the worker is published and GitHub OIDC authentication succeeds. Normal HTTPS connections from GitHub's runner to both public PRC hostnames (`122.53.86.248`) fail with `ConnectionRefusedError`, including robots requests. This differs from successful workstation access. No proxy/restriction workaround was used. The schedule remains disabled pending a successful cloud scan; see [deployment evidence](worker-deployment-review.md).
