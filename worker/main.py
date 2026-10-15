@@ -12,6 +12,12 @@ from worker.publish import publish_validated
 from worker.source import SourceError, SourcePolicy, fetch, parse_publication, parse_catalog, associate, Page
 
 
+def log_failure(stage, error):
+    detail = str(error) if type(error) is SourceError else type(error).__name__
+    cause = f' ({type(error.__cause__).__name__})' if error.__cause__ else ''
+    print(f'{stage}: {detail}{cause}', file=sys.stderr)
+
+
 def discover(config, policy, now, fetcher):
     catalog_url, results_url = config['catalogUrl'], config['resultsUrl']
     for url in (catalog_url, results_url):
@@ -43,7 +49,8 @@ def run(config, providers, now, fetcher=fetch):
     policy = SourcePolicy(config.get('sourcePolicy', {}))
     try:
         policy.load_robots(fetcher)
-    except (ValueError, OSError):
+    except (ValueError, OSError) as error:
+        log_failure('Source setup failed', error)
         providers.health(now, False)
         return 1
     publications = config.get('publications', [])
@@ -52,7 +59,8 @@ def run(config, providers, now, fetcher=fetch):
             catalog, publications = discover(config, policy, now, fetcher)
             providers.catalog(catalog)
             providers.review(catalog['review'])
-        except (ValueError, OSError):
+        except (ValueError, OSError) as error:
+            log_failure('Catalog discovery failed', error)
             providers.health(now, False)
             raise
     if not publications:
@@ -86,7 +94,8 @@ def run(config, providers, now, fetcher=fetch):
                 names = Path(directory) / 'names.json'
                 write_names_file(report, names)
                 publish_validated(report, names, providers, publication=publication)
-        except (ValueError, OSError):
+        except (ValueError, OSError) as error:
+            log_failure('Publication processing failed', error)
             failures += 1
             # Keep last-good publication data; source failure changes health only.
     providers.health(now, failures == 0)
@@ -106,8 +115,8 @@ def main():
             raise SourceError('Use --live-sources explicitly; there is no demo fallback.')
         from worker.providers import Providers
         return 1 if run(config, Providers.from_environment(), datetime.now(timezone.utc)) else 0
-    except Exception:
-        print('Worker failed. Check configuration, source availability and private provider access.', file=sys.stderr)
+    except Exception as error:
+        log_failure('Worker failed', error)
         return 1
 
 

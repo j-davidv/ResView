@@ -1,4 +1,5 @@
 import copy
+import io
 import hashlib
 import json
 import tempfile
@@ -11,7 +12,7 @@ from urllib.robotparser import RobotFileParser
 from worker.source import SourcePolicy, SourceError, fetch, parse_publication, parse_catalog, associate
 from worker.extract import validate_pages, write_names_file
 from worker.publish import publish_validated
-from worker.main import run
+from worker.main import run, log_failure
 
 
 NOW = datetime(2026, 10, 15, tzinfo=timezone.utc)
@@ -227,6 +228,12 @@ class PublishTests(unittest.TestCase):
 
 
 class MainTests(unittest.TestCase):
+    def test_operational_logs_redact_provider_exception_contents(self):
+        with patch('sys.stderr', new_callable=io.StringIO) as output:
+            log_failure('source setup', ValueError('private-token-and-name'))
+            self.assertIn('source setup: ValueError', output.getvalue())
+            self.assertNotIn('private-token-and-name', output.getvalue())
+
     def test_missing_source_configuration_prevents_network_or_provider_access(self):
         providers, fetcher = Mock(), Mock()
         with self.assertRaises(SourceError):
