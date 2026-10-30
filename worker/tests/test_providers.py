@@ -1,10 +1,43 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from worker.providers import Providers, identifier
+from worker.providers import Providers, identifier, review_identifier
 
 
 class ProviderTests(unittest.TestCase):
+    def test_keyless_revalidation_only_reuses_identical_public_asset(self):
+        provider = Providers(Mock(), 'example.supabase.co')
+        provider.download = Mock(return_value=b'original')
+        provider._storage = Mock()
+        provider.upload('version/file.json', b'original')
+        with self.assertRaises(ValueError):
+            provider.upload('version/file.json', b'changed')
+        provider._storage.assert_not_called()
+
+    def test_review_aliases_remain_one_pending_issue(self):
+        record = {'title': 'Test Results', 'publicationUrl': 'https://www.prc.gov.ph/index.php/article/result',
+                  'reason': 'Requires review.'}
+        canonical = {**record, 'publicationUrl': 'https://www.prc.gov.ph/article/result'}
+        self.assertEqual(review_identifier(record), review_identifier(canonical))
+        db = Mock()
+        db.collection.return_value.stream.return_value = [
+            Mock(id=identifier(record), to_dict=lambda: {**record, 'status': 'pending'})]
+        Providers(db).review([canonical], catalog={'sittings': []}, now=Mock())
+        db.collection.return_value.document.return_value.update.assert_called_once_with(
+            {'status': 'alias', 'canonicalReviewId': review_identifier(canonical)})
+
+    def test_article_aliases_use_one_publication_identity(self):
+        db = Mock()
+        provider = Providers(db)
+        record = {'selection': {'examId': 'test', 'sittingId': 'sitting', 'categoryId': 'all'},
+                  'publicationUrl': 'https://www.prc.gov.ph/index.php/article/result'}
+        provider.publication(record)
+        provider.publication({**record, 'publicationUrl': 'https://www.prc.gov.ph/article/result'})
+        calls = db.collection.return_value.document.call_args_list
+        self.assertEqual(calls[0].args, calls[1].args)
+        self.assertEqual(db.collection.return_value.document.return_value.set.call_args_list[0].args[0]['publicationUrl'],
+                         'https://www.prc.gov.ph/index.php/article/result')
+
     def setUp(self):
         self.db = Mock()
         self.providers = Providers(self.db, 'example.supabase.co', 'private-worker-key')
@@ -81,6 +114,18 @@ class ProviderTests(unittest.TestCase):
         self.providers.health(Mock(isoformat=lambda: 'now'), False)
         self.db.document.return_value.set.assert_called_once_with(
             {'freshness': 'stale', 'lastAttemptUtc': 'now'}, merge=True)
+
+    def test_review_resolves_only_evidenced_rows_without_deleting_history(self):
+        db = Mock()
+        db.collection.return_value.stream.return_value = [
+            Mock(id='mapped', to_dict=lambda: {'publicationUrl': 'official-result'}),
+            Mock(id='parsed', to_dict=lambda: {'examId': 'exam', 'officialDates': 'May 1, 2026'}),
+            Mock(id='unknown', to_dict=lambda: {'publicationUrl': 'unknown-result'})]
+        Providers(db).review([], catalog={'sittings': [{'examId': 'exam', 'officialDates': 'May 1, 2026'}]},
+                             publications=[{'url': 'official-result'}], now=Mock(isoformat=lambda: 'now'))
+        self.assertEqual([c.args[0] for c in db.collection.return_value.document.call_args_list], ['mapped', 'parsed'])
+        self.assertEqual(db.collection.return_value.document.return_value.update.call_count, 2)
+        db.collection.return_value.document.return_value.delete.assert_not_called()
 
     def test_upload_conflict_only_accepted_when_existing_bytes_identical(self):
         self.providers._storage = Mock(return_value=(409, b''))

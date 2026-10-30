@@ -7,8 +7,12 @@ on:
         description: Fetch public PRC sources and update Firebase
         type: boolean
         default: false
+      review_documents:
+        description: Retrieve permitted originals encrypted for independent review (no activation)
+        type: boolean
+        default: false
   schedule:
-    - cron: '7,37 * * * *'
+    - cron: '57 * * * *'
   push:
     paths: ['worker/**', '.github/workflows/monitor.yml']
   pull_request:
@@ -37,7 +41,7 @@ jobs:
     needs: test
     if: >-
       github.ref == 'refs/heads/main' &&
-      ((github.event_name == 'workflow_dispatch' && inputs.live) ||
+      ((github.event_name == 'workflow_dispatch' && (inputs.live || inputs.review_documents)) ||
        (github.event_name == 'schedule' && vars.PRC_MONITOR_ENABLED == 'true'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -55,16 +59,38 @@ jobs:
           ACCOUNT: ${{ vars.GCP_WORKER_SERVICE_ACCOUNT }}
         run: test -n "$PROVIDER" && test -n "$ACCOUNT"
       - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        id: auth
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_WORKER_SERVICE_ACCOUNT }}
       - run: pip install -r worker/requirements.txt
       - name: Scan public publications with delivery disabled
+        if: github.event_name != 'workflow_dispatch' || inputs.live
         env:
           FIREBASE_PROJECT_ID: resview-9240c
           SUPABASE_STORAGE_HOST: erlnuyltaudetjpriosu.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PRC_PRIVATE_PROFILES: ${{ secrets.PRC_PRIVATE_PROFILES }}
         run: python -m worker.main --config worker/config.json --live-sources --delivery disabled
+      - name: Record document review backlog
+        if: always() && steps.auth.outcome == 'success'
+        env:
+          FIREBASE_PROJECT_ID: resview-9240c
+          PRC_REVIEW_CERTIFICATE: ${{ vars.PRC_REVIEW_CERTIFICATE }}
+          ACQUIRE: ${{ github.event_name == 'workflow_dispatch' && inputs.review_documents }}
+        run: |
+          args=()
+          if [ "$ACQUIRE" = true ]; then args+=(--acquire); fi
+          python -m worker.review --config worker/config.json --output runtime/review "${args[@]}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && steps.auth.outcome == 'success'
+        with:
+          name: document-review
+          path: |
+            runtime/review/coverage.json
+            runtime/review/*.pdf.cms
+          if-no-files-found: error
+          retention-days: 7
       - name: Diagnose public source connectivity after failure
         if: failure()
         run: |

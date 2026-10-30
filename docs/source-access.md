@@ -1,5 +1,13 @@
 # Live PRC source evidence
 
+## October 30: automatic retrieval through the official Drive API
+
+The later owner instruction requires automatic PDF retrieval. The documented Google Drive API is a permitted API route distinct from the browser download route: the existing worker identity obtains `drive.readonly` OAuth access and must pass owner `capabilities.canDownload` and restriction checks before retrieving content. No owner-disabled download, browser robots restriction, viewer extraction or private API is bypassed. PRC website requests retain their existing robots checks.
+
+[Hosted run 41018013099](https://github.com/j-davidv/ResView/actions/runs/41018013099) retrieved the approved Ocular Pharmacologists PDF automatically, matched all 270,838 bytes' SHA-256 to the preserved original, and passed extraction validation. The public names asset remained unchanged; the job log contains no real sample name. One private reviewed profile is automated. See [retrieval verification and limits](prc-update-verification.md#hosted-automatic-pdf-retrieval). The earlier browser-route restrictions below remain historical source evidence and do not establish an API authorization failure.
+
+## October 15 source checks
+
 Checked 2026-10-15, Asia/Taipei. The owner instructed public PRC access without a separate permission approval. This supersedes the earlier approval gate; actual source access controls remain binding. No private PRC account, ratings, personal identifiers or contact request was used.
 
 Successfully retrieved through normal HTTPS:

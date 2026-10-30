@@ -8,7 +8,9 @@ app/android/key.properties
 !*example
 .superpowers/
 .development/
-.impeccable/review/
+.idea/
+.impeccable/
+app/android/build/
 *.pdf
 runtime/
 credentials/

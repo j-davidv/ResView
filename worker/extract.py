@@ -54,11 +54,18 @@ def extract_pdf(path, expected, now):
     body = path.read_bytes()
     if not body.startswith(b'%PDF-'):
         raise ValueError('Source is not a PDF.')
-    reader = PdfReader(path, strict=True)
-    if reader.is_encrypted or len(reader.pages) != expected.get('pageCount'):
-        raise ValueError('Encrypted or unexpected page count.')
-    return validate_pages([page.extract_text() or '' for page in reader.pages],
-                          hashlib.sha256(body).hexdigest(), expected, now)
+    checksum = hashlib.sha256(body).hexdigest()
+    if checksum != expected.get('originalSha256'):
+        raise ValueError('The PDF version has not passed independent review.')
+    try:
+        reader = PdfReader(path, strict=True)
+        if reader.is_encrypted or len(reader.pages) != expected.get('pageCount'):
+            raise ValueError('Encrypted or unexpected page count.')
+        pages = [page.extract_text() or '' for page in reader.pages]
+    except Exception as error:
+        # Broken PDFs can also raise built-in exceptions inside the parser.
+        raise ValueError('The source PDF could not be validated.') from error
+    return validate_pages(pages, checksum, expected, now)
 
 
 def write_names_file(report, output):

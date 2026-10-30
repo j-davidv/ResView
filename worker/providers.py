@@ -8,10 +8,18 @@ from google.cloud import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 from worker.extract import MAX_BYTES, encode
+from worker.source import publication_identity_url
 
 
 def identifier(value):
     return hashlib.sha256(encode(value)).hexdigest()
+
+
+def review_identifier(record):
+    identity = {key: record[key] for key in ('examId', 'officialDates', 'publicationUrl', 'title', 'reason') if key in record}
+    if identity.get('publicationUrl'):
+        identity['publicationUrl'] = publication_identity_url(identity['publicationUrl'])
+    return identifier(identity)
 
 
 class Providers:
@@ -39,9 +47,10 @@ class Providers:
                     batch.set(self.db.collection(collection).document(row['id']), record)
                 batch.commit()
         current = {row['id'] for row in catalog['sittings']}
-        unparsed_exams = {row.get('examId') for row in catalog['review']}
-        retired = [row for row in self.db.collection('sittings').where(
-            filter=FieldFilter('catalogUrl', '==', catalog['catalogUrl'])).stream()
+        unparsed_exams = {row.get('examId') for row in catalog['review'] if row.get('status') != 'cancelled'}
+        retired = [row for url in catalog.get('catalogUrls', [catalog['catalogUrl']])
+            for row in self.db.collection('sittings').where(
+            filter=FieldFilter('catalogUrl', '==', url)).stream()
             if row.id not in current and row.to_dict().get('examId') not in unparsed_exams]
         for offset in range(0, len(retired), 400):
             batch = self.db.batch()
@@ -50,10 +59,11 @@ class Providers:
             batch.commit()
 
     def publication(self, record):
-        key = identifier([record['selection'], record['publicationUrl']])
+        key = identifier([record['selection'], publication_identity_url(record['publicationUrl'])])
         self.db.collection('publications').document(key).set(record)
 
-    def _switch(self, record, *, fallback=False):
+    def _switch(self, record, *, fallback=False, pending=False):
+        record = dict(record)
         selection_id = identifier(record['selection'])
         version_id = identifier([record['selection'], record['documentVersion']])
         pointer = self.db.collection('workerState').document(selection_id)
@@ -64,6 +74,8 @@ class Providers:
             prior = pointer.get(transaction=transaction).to_dict() or {}
             existing = target.get(transaction=transaction).to_dict() or {}
             old_id = prior.get('versionId')
+            if pending and old_id == version_id and existing.get('state') == 'checkingAvailable':
+                return
             if fallback and prior.get('publicationVersion') == record.get('publicationVersion') and old_id:
                 if record.get('lastSuccessfulCheckUtc'):
                     transaction.update(self.db.collection('resultVersions').document(old_id),
@@ -71,11 +83,14 @@ class Providers:
                 return
             if old_id and old_id != version_id and existing:
                 raise ValueError('Refusing to reactivate a historical version.')
+            if existing.get('namesSha256'):
+                if record['state'] == 'checkingAvailable' and existing['namesSha256'] != record.get('namesSha256'):
+                    raise ValueError('Immutable document version changed bytes.')
+                if record['state'] == 'checkingUnavailable':
+                    record['namesSha256'] = existing['namesSha256']
             if existing.get('state') == 'checkingAvailable' and record['state'] == 'checkingAvailable':
                 if fallback:
                     return
-                if existing.get('namesSha256') != record.get('namesSha256'):
-                    raise ValueError('Immutable document version changed bytes.')
                 if record.get('lastSuccessfulCheckUtc'):
                     transaction.update(target, {'lastSuccessfulCheckUtc': record['lastSuccessfulCheckUtc'],
                                                 'publicationVersion': record.get('publicationVersion')})
@@ -88,13 +103,13 @@ class Providers:
             transaction.set(pointer, {'versionId': version_id, 'publicationVersion': record.get('publicationVersion')})
         switch(self.db.transaction())
 
-    def unavailable(self, publication, reason, *, observed_version=None):
+    def unavailable(self, publication, reason, *, observed_version=None, pending=False):
         record = {key: publication[key] for key in ('selection', 'publicationUrl')}
         record.update(documentVersion=observed_version or publication['publicationVersion'],
                       publicationVersion=publication['publicationVersion'], current=True,
                       lastSuccessfulCheckUtc=publication['retrievedAtUtc'],
                       state='checkingUnavailable', reason=reason)
-        self._switch(record, fallback=observed_version is None)
+        self._switch(record, fallback=observed_version is None, pending=pending)
 
     def activate(self, record):
         self._switch(record)
@@ -105,9 +120,23 @@ class Providers:
             record['lastSuccessfulCheckUtc'] = now.isoformat()
         self.db.document('monitor/status').set(record, merge=True)
 
-    def review(self, records):
+    def review(self, records, *, catalog=None, publications=(), now=None):
         for record in records:
-            self.db.collection('workerReview').document(identifier(record)).set(record)
+            self.db.collection('workerReview').document(review_identifier(record)).set({'status': 'pending', **record})
+        if catalog is None:
+            return
+        pending = {review_identifier(record) for record in records}
+        mapped = {publication_identity_url(item['url']) for item in publications}
+        parsed = {(s['examId'], s['officialDates']) for s in catalog['sittings']}
+        for row in self.db.collection('workerReview').stream():
+            record = row.to_dict()
+            key = review_identifier(record)
+            if key in pending and row.id != key:
+                self.db.collection('workerReview').document(row.id).update({'status': 'alias', 'canonicalReviewId': key})
+            elif key not in pending and (publication_identity_url(record.get('publicationUrl', '')) in mapped or
+                    (record.get('examId'), record.get('officialDates')) in parsed):
+                self.db.collection('workerReview').document(row.id).update(
+                    {'status': 'resolved', 'resolvedAtUtc': now.isoformat()})
 
     def public_url(self, key):
         if not self.storage_host:
@@ -133,6 +162,10 @@ class Providers:
             connection.close()
 
     def upload(self, key, body):
+        if not self.storage_key:
+            if self.download(key) == body:
+                return
+            raise ValueError('A new asset requires worker Storage credentials.')
         path = '/storage/v1/object/validated-names/' + quote(key, safe='/')
         status, _ = self._storage('POST', path, body)
         if status in (400, 409) and self.download(key) == body:
