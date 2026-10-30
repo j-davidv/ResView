@@ -8,10 +8,18 @@ from google.cloud import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 from worker.extract import MAX_BYTES, encode
+from worker.source import publication_identity_url
 
 
 def identifier(value):
     return hashlib.sha256(encode(value)).hexdigest()
+
+
+def review_identifier(record):
+    identity = {key: record[key] for key in ('examId', 'officialDates', 'publicationUrl', 'title', 'reason') if key in record}
+    if identity.get('publicationUrl'):
+        identity['publicationUrl'] = publication_identity_url(identity['publicationUrl'])
+    return identifier(identity)
 
 
 class Providers:
@@ -39,9 +47,10 @@ class Providers:
                     batch.set(self.db.collection(collection).document(row['id']), record)
                 batch.commit()
         current = {row['id'] for row in catalog['sittings']}
-        unparsed_exams = {row.get('examId') for row in catalog['review']}
-        retired = [row for row in self.db.collection('sittings').where(
-            filter=FieldFilter('catalogUrl', '==', catalog['catalogUrl'])).stream()
+        unparsed_exams = {row.get('examId') for row in catalog['review'] if row.get('status') != 'cancelled'}
+        retired = [row for url in catalog.get('catalogUrls', [catalog['catalogUrl']])
+            for row in self.db.collection('sittings').where(
+            filter=FieldFilter('catalogUrl', '==', url)).stream()
             if row.id not in current and row.to_dict().get('examId') not in unparsed_exams]
         for offset in range(0, len(retired), 400):
             batch = self.db.batch()
@@ -50,7 +59,7 @@ class Providers:
             batch.commit()
 
     def publication(self, record):
-        key = identifier([record['selection'], record['publicationUrl']])
+        key = identifier([record['selection'], publication_identity_url(record['publicationUrl'])])
         self.db.collection('publications').document(key).set(record)
 
     def _switch(self, record, *, fallback=False):
@@ -105,9 +114,23 @@ class Providers:
             record['lastSuccessfulCheckUtc'] = now.isoformat()
         self.db.document('monitor/status').set(record, merge=True)
 
-    def review(self, records):
+    def review(self, records, *, catalog=None, publications=(), now=None):
         for record in records:
-            self.db.collection('workerReview').document(identifier(record)).set(record)
+            self.db.collection('workerReview').document(review_identifier(record)).set({'status': 'pending', **record})
+        if catalog is None:
+            return
+        pending = {review_identifier(record) for record in records}
+        mapped = {publication_identity_url(item['url']) for item in publications}
+        parsed = {(s['examId'], s['officialDates']) for s in catalog['sittings']}
+        for row in self.db.collection('workerReview').stream():
+            record = row.to_dict()
+            key = review_identifier(record)
+            if key in pending and row.id != key:
+                self.db.collection('workerReview').document(row.id).update({'status': 'alias', 'canonicalReviewId': key})
+            elif key not in pending and (publication_identity_url(record.get('publicationUrl', '')) in mapped or
+                    (record.get('examId'), record.get('officialDates')) in parsed):
+                self.db.collection('workerReview').document(row.id).update(
+                    {'status': 'resolved', 'resolvedAtUtc': now.isoformat()})
 
     def public_url(self, key):
         if not self.storage_host:

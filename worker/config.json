@@ -3,11 +3,388 @@
   "sourcePolicy": {
     "accessAuthorization": "Owner instructed public PRC access on 2026-10-15 without a separate permission approval.",
     "routes": {
-      "www.prc.gov.ph": ["/robots.txt", "/articles/exam-results", "/article/", "/2026-schedule-examination", "/sites/default/files/"],
-      "prc.gov.ph": ["/robots.txt", "/articles/exam-results", "/article/", "/2026-schedule-examination", "/sites/default/files/"]
+      "www.prc.gov.ph": [
+        "/robots.txt",
+        "/articles/exam-results",
+        "/article/",
+        "/index.php/article/",
+        "/sites/default/files/",
+        "/exam-schedules-menu",
+        "/{year}-schedule-examination"
+      ],
+      "prc.gov.ph": [
+        "/robots.txt",
+        "/articles/exam-results",
+        "/article/",
+        "/index.php/article/",
+        "/sites/default/files/",
+        "/exam-schedules-menu",
+        "/{year}-schedule-examination"
+      ]
     }
   },
-  "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
   "resultsUrl": "https://www.prc.gov.ph/articles/exam-results",
-  "profiles": {}
+  "profiles": {},
+  "catalogIndexUrl": "https://www.prc.gov.ph/exam-schedules-menu",
+  "coverageStartYear": 2026,
+  "maxIndexPages": 100,
+  "scheduleOverrides": [
+    {
+      "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+      "examId": "criminologists",
+      "officialDates": "February 04, 05, and 06, 2026",
+      "officialTestingCenters": "NCR, Baguio, Butuan, Cagayan de Oro, Calapan, Cebu, Davao, Iloilo, Koronadal, Legazpi, Lucena, Palawan, Pagadian, Pampanga, Rosales, Tacloban, Tuguegarao, Zamboanga, Bacolod, Bayambang, Bohol, Catarman, Cauayan, Dumaguete, Ilocos Norte, Ilocos Sur, Kidapawan, Lipa (Batangas), Nueva Vizcaya,Romblon and Naga Resolution No. 2141 s.2026 Designating Naga City as an Additional Testing Center for the February 2026 Licensure Examination for Criminologists Resolution No. 2144 s.2026 Cancellation of the Licensure Examination for Criminologists in the Cities of Butuan and Cagayan De Oro on February 06, 2026 and Rescheduling the Same to February 08, 2026",
+      "reviewedAt": "2026-10-29",
+      "evidence": "Official schedule annotations; resolutions 2192, 2234 and 2235 also read directly. Date span includes all affected centers, not continuous examination days.",
+      "reviewedDates": "February 04, 05, 06 and 08, 2026"
+    },
+    {
+      "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+      "examId": "professional-mechanical-engineers-technical-evaluation",
+      "officialDates": "June 08, 09, 10, 11 and 12, 2026",
+      "officialTestingCenters": "Lucena Resolution No. 2192 s. 2026 - Approving the Additional Days for the Professional Mechanical Engineers Technical Evaluation in Lucena in June 2026 and Baguio in September and October 2026",
+      "reviewedAt": "2026-10-29",
+      "evidence": "Official schedule annotations; resolutions 2192, 2234 and 2235 also read directly. Date span includes all affected centers, not continuous examination days.",
+      "reviewedDates": "June 08 to 12, 2026"
+    },
+    {
+      "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+      "examId": "architects",
+      "officialDates": "June 08 and 10, 2026",
+      "officialTestingCenters": "NCR, Baguio, Cagayan de Oro, Cebu, Davao, Iloilo, Legazpi, Lucena, Palawan, Pampanga, Rosales, Tacloban, Tuguegarao, and Zamboanga Resolution No. 2199 s. 2026 - Cancellation of the Licensure Examination for Architects in Davao City on 08 and 10 2026 and Rescheduling the same to 22 and 24 June 2026",
+      "reviewedAt": "2026-10-29",
+      "evidence": "Official schedule annotations; resolutions 2192, 2234 and 2235 also read directly. Date span includes all affected centers, not continuous examination days.",
+      "reviewedDates": "June 08, 10, 22 and 24, 2026"
+    },
+    {
+      "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+      "examId": "landscape-architects",
+      "officialDates": "July 08 and 09, 2026 (Rescheduled to July 14 and 15, 2026) Resolution No. 2209 s.2026 - Rescheduling the Landscape Architects Licensure Examination on 14 and 15 July 2026 and Scheduling the Release thereof on 16 July 2026",
+      "officialTestingCenters": "NCR and Cebu",
+      "reviewedAt": "2026-10-29",
+      "evidence": "Official schedule annotations; resolutions 2192, 2234 and 2235 also read directly. Date span includes all affected centers, not continuous examination days.",
+      "reviewedDates": "July 14 and 15, 2026"
+    },
+    {
+      "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+      "examId": "professional-mechanical-engineers-technical-evaluation",
+      "officialDates": "July 22, 23, and 24, 2026 (Approving One Additional Day to July 21 to 24, 2026) Resolution No. 2221 s. 2026 - Approving One Additional Day for the July 2026 Professional Mechanical Technical Evaluation in Rosales",
+      "officialTestingCenters": "Rosales",
+      "reviewedAt": "2026-10-29",
+      "evidence": "Official schedule annotations; resolutions 2192, 2234 and 2235 also read directly. Date span includes all affected centers, not continuous examination days.",
+      "reviewedDates": "July 21 to 24, 2026"
+    },
+    {
+      "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+      "examId": "professional-electronics-engineers-oral-examination",
+      "officialDates": "August 13 and 14, 2026",
+      "officialTestingCenters": "Cebu Resolution No. 2234 s. 2026 - Cancellation of the August 2026 Professional Electronics Engineers Oral Examination in Cebu",
+      "reviewedAt": "2026-10-29",
+      "evidence": "Official schedule annotations; resolutions 2192, 2234 and 2235 also read directly. Date span includes all affected centers, not continuous examination days.",
+      "cancelled": true
+    },
+    {
+      "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+      "examId": "guidance-counselors",
+      "officialDates": "August 17 and 18, 2026",
+      "officialTestingCenters": "NCR, Baguio, Butuan, Cagayan de Oro, Cebu, Davao, Koronadal, Lucena, Rosales, and Tuguegarao Resolution No. 2235 s. 2026 - Cancelling the Second Day of the Guidance Counselors",
+      "reviewedAt": "2026-10-29",
+      "evidence": "Official schedule annotations; resolutions 2192, 2234 and 2235 also read directly. Date span includes all affected centers, not continuous examination days.",
+      "reviewedDates": "August 17 and 23, 2026"
+    },
+    {
+      "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+      "examId": "psychologists",
+      "officialDates": "August 19 and 20, 2026 (Rescheduled to September 01 and 02, 2026) Resolution No. 2242 s.2026 - Cancellation of the Psychologists Licensure Examination in Pampanga on September 01 and 02, 2026 and Rescheduling the Same to September 17 and 18, 2026 Resolution No. 2236 s.2026 - Cancellation of the Psychologists Licensure Examination on August 19 and 20, 2026 and Rescheduling the Same to September 1 and 2, 2026",
+      "officialTestingCenters": "NCR, Baguio, Butuan, Cagayan de Oro, Cebu, Davao, Iloilo, Koronadal, Legazpi, Lucena, Palawan, Pampanga, Rosales, and Tuguegarao",
+      "reviewedAt": "2026-10-29",
+      "evidence": "Official schedule annotations; resolutions 2192, 2234 and 2235 also read directly. Date span includes all affected centers, not continuous examination days.",
+      "reviewedDates": "September 01, 02, 17 and 18, 2026"
+    },
+    {
+      "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+      "examId": "psychometricians",
+      "officialDates": "August 19 and 20, 2026 (Rescheduled to September 01 and 02, 2026) Resolution No. 2243 s.2026 - Cancellation of the Psychometricians Licensure Examination in Pampanga on September 01 and 02, 2026 and Rescheduling the Same to September 17 and 18, 2026 Resolution No. 2237 s.2026 - Cancellation of the Psychometricians Licensure Examination on August 19 and 20, 2026 and Rescheduling the Same to September 1 and 2, 2026",
+      "officialTestingCenters": "NCR, Baguio, Butuan, Cagayan de Oro, Calapan, Cebu, Davao, Iloilo, Koronadal, Legazpi, Lucena, Palawan, Pampanga, Rosales, Tacloban, Tuguegarao and Zamboanga",
+      "reviewedAt": "2026-10-29",
+      "evidence": "Official schedule annotations; resolutions 2192, 2234 and 2235 also read directly. Date span includes all affected centers, not continuous examination days.",
+      "reviewedDates": "September 01, 02, 17 and 18, 2026"
+    },
+    {
+      "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+      "examId": "nurses",
+      "officialDates": "August 29 and 30, 2026 (Rescheduled to September 11 and 12, 2026) Resolution No. 2240 s.2026 - Cancellation of the Nurses Licensure Examination in Pampanga and Cabanatuan on August 29 and 30, 2026 and Rescheduling the Same to September 11 and 12, 2026 (Rescheduled to September 12, 2026) Resolution No. 2241 s.2026 - Cancellation of the Second Day of the Nurses Licensure Examination in the National Capital Region on August 30, 2026 and Rescheduling Thereof to September 12, 2026",
+      "officialTestingCenters": "NCR, Baguio, Butuan, Cagayan de Oro, Calapan, Cebu, Davao, Iloilo, Koronadal, Legazpi, Lucena, Pagadian, Palawan, Pampanga, Rosales, Tacloban, Tuguegarao, Zamboanga, Cabanatuan, Cauayan, Dumaguete (Negros Oriental), Ilocos Sur, Laguna, Lipa (Batangas), Tagbilaran (Bohol), and Urdaneta (Pangasinan)",
+      "reviewedAt": "2026-10-29",
+      "evidence": "Official schedule annotations; resolutions 2192, 2234 and 2235 also read directly. Date span includes all affected centers, not continuous examination days.",
+      "reviewedDates": "August 29, 30 and September 11 and 12, 2026"
+    },
+    {
+      "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+      "examId": "professional-mechanical-engineers-technical-evaluation",
+      "officialDates": "September 29, 30 and October 01, 2026",
+      "officialTestingCenters": "Baguio Resolution No. 219 2 - Approving the Additional Days for the Professional Mechanical Engineers Technical Evaluation in Lucena in June 2026 and Baguio in September and October 2026",
+      "reviewedAt": "2026-10-29",
+      "evidence": "Official schedule annotations; resolutions 2192, 2234 and 2235 also read directly. Date span includes all affected centers, not continuous examination days.",
+      "reviewedDates": "September 29 to October 01, 2026"
+    },
+    {
+      "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+      "examId": "real-estate-consultants-revalida",
+      "officialDates": "January 12, 13, and 14, 2026",
+      "officialTestingCenters": "NCR",
+      "reviewedDates": "January 13 and 14, 2026",
+      "reviewedAt": "2026-10-29",
+      "evidence": "https://www.prc.gov.ph/index.php/article/december-2025-real-estate-consultants-licensure-examination-results-released-two-2-working explicitly states January 13 and 14 for the revalida."
+    }
+  ],
+  "publicationMappings": {
+    "https://www.prc.gov.ph/article/october-2026-real-estate-consultants-licensure-examination-results-released-one-1-working": {
+      "publicationVersion": "edd6b16717d195c21b40e9ecd87e54ced5ba6566495d8e82108867ad51e23fdc",
+      "selections": [
+        {
+          "examId": "real-estate-consultants-written",
+          "sittingId": "real-estate-consultants-written-2026-09-08",
+          "categoryId": "all"
+        },
+        {
+          "examId": "real-estate-consultants-revalida",
+          "sittingId": "real-estate-consultants-revalida-2026-10-05",
+          "categoryId": "all"
+        }
+      ],
+      "reviewedAt": "2026-10-29",
+      "evidence": "Combined final result; official schedule phase dates and publication release reviewed. Mapping is metadata only; no phase-specific name list is enabled."
+    },
+    "https://www.prc.gov.ph/index.php/article/december-2025-real-estate-consultants-licensure-examination-results-released-two-2-working": {
+      "publicationVersion": "4c83f478eee3d20e6514155ff0c6113b86c6115eb2f1e2f4223f9a809383e1ad",
+      "selections": [
+        {
+          "examId": "real-estate-consultants-revalida",
+          "sittingId": "real-estate-consultants-revalida-2026-01-13",
+          "categoryId": "all"
+        }
+      ],
+      "reviewedAt": "2026-10-29",
+      "evidence": "Combined final result; official schedule phase dates and publication release reviewed. Mapping is metadata only; no phase-specific name list is enabled."
+    },
+    "https://www.prc.gov.ph/article/august-and-september-2026-nurses-licensure-examination-results-released-five-5-working-days": {
+      "publicationVersion": "bb6d3c22f65bf699d9514525740bf4d01fcb7b1c486b9ee19ea76fbf1469ef19",
+      "selections": [
+        {
+          "examId": "nurses",
+          "sittingId": "nurses-2026-08-29",
+          "categoryId": "all"
+        }
+      ],
+      "reviewedAt": "2026-10-29",
+      "evidence": "Combined final result; official schedule phase dates and publication release reviewed. Mapping is metadata only; no phase-specific name list is enabled."
+    },
+    "https://www.prc.gov.ph/article/may-2026-dentists-licensure-examination-results-released-four-4-working-days": {
+      "publicationVersion": "271b47aac078fa37938f23807fc44ded6da5f5bdaaad53480e851fa847d61435",
+      "selections": [
+        {
+          "examId": "dentists-written",
+          "sittingId": "dentists-written-2026-05-04",
+          "categoryId": "all"
+        },
+        {
+          "examId": "dentists-practical",
+          "sittingId": "dentists-practical-2026-05-11",
+          "categoryId": "all"
+        }
+      ],
+      "reviewedAt": "2026-10-29",
+      "evidence": "Combined final result; official schedule phase dates and publication release reviewed. Mapping is metadata only; no phase-specific name list is enabled."
+    },
+    "https://www.prc.gov.ph/article/may-2026-dental-hygienists-computer-based-licensure-examination-results-released-eight-8": {
+      "publicationVersion": "368382c88f3ae28ad293cc9d472ddd9466df6be5e9f49c9f466c85b792f8d54f",
+      "selections": [
+        {
+          "examId": "dental-hygienists-written-cble",
+          "sittingId": "dental-hygienists-written-cble-2026-05-07",
+          "categoryId": "all"
+        },
+        {
+          "examId": "dental-hygienists-practical",
+          "sittingId": "dental-hygienists-practical-2026-05-08",
+          "categoryId": "all"
+        }
+      ],
+      "reviewedAt": "2026-10-29",
+      "evidence": "Combined final result; official schedule phase dates and publication release reviewed. Mapping is metadata only; no phase-specific name list is enabled."
+    },
+    "https://www.prc.gov.ph/article/september-2026-optometrists-computer-based-licensure-examination-results-released-three-3": {
+      "publicationVersion": "eb82dfcd2ecad1ec55c9d6820dcaa447c338acd207235d099843bc37b77e2211",
+      "selections": [
+        {
+          "examId": "optometrists-written-cble",
+          "sittingId": "optometrists-written-cble-2026-09-28",
+          "categoryId": "all"
+        },
+        {
+          "examId": "optometrists-practical",
+          "sittingId": "optometrists-practical-2026-10-05",
+          "categoryId": "all"
+        }
+      ],
+      "reviewedAt": "2026-10-29",
+      "evidence": "Combined final result; official schedule phase dates and publication release reviewed. Mapping is metadata only; no phase-specific name list is enabled."
+    },
+    "https://www.prc.gov.ph/article/april-2026-results-technical-evaluation-upgrading-professional-electrical-engineers": {
+      "publicationVersion": "b3e80ba4e3da37307ee1a23c7f0d9717220bec72349d7febe45587c9a0536fe7",
+      "selections": [
+        {
+          "examId": "professional-electrical-engineers-oral-examination",
+          "sittingId": "professional-electrical-engineers-oral-examination-2026-01-22",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-electrical-engineers-oral-examination",
+          "sittingId": "professional-electrical-engineers-oral-examination-2026-02-26",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-electrical-engineers-oral-examination",
+          "sittingId": "professional-electrical-engineers-oral-examination-2026-04-15",
+          "categoryId": "all"
+        }
+      ],
+      "reviewedAt": "2026-10-30",
+      "evidence": "Resolutions 2138 (2025), pages 1-2, and 2163 (2026), page 2, visually reviewed. The April release explicitly names Doha, Dubai and NCR; these are the three preceding scheduled sittings, with NCR target release April 28 matching publication. Release month is not the examination month."
+    },
+    "https://www.prc.gov.ph/article/september-2026-professional-electrical-engineers-oral-examination-technical-evaluation": {
+      "publicationVersion": "d8871a9776fe9c4ca03ecc255f19d84bbcf59ea6c6cb6919a1d07e8452a170f0",
+      "selections": [
+        {
+          "examId": "professional-electrical-engineers-oral-examination",
+          "sittingId": "professional-electrical-engineers-oral-examination-2026-08-03",
+          "categoryId": "all"
+        }
+      ],
+      "reviewedAt": "2026-10-30",
+      "evidence": "Resolution 2163 (2026), page 2: Cagayan de Oro August 3-5, target release September 10. Actual publication September 14 names Cagayan de Oro. September 21-23 is Davao with December target release and is excluded."
+    },
+    "https://www.prc.gov.ph/article/august-2026-professional-mechanical-engineers-oral-examinationtechnical-evaluation-results": {
+      "publicationVersion": "4d562dd5aa4ca993060ad2410332c2a5ef575e56d3eb1d86a96a203e90884b01",
+      "selections": [
+        {
+          "examId": "professional-mechanical-engineers-technical-evaluation",
+          "sittingId": "professional-mechanical-engineers-technical-evaluation-2026-04-14",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-mechanical-engineers-technical-evaluation",
+          "sittingId": "professional-mechanical-engineers-technical-evaluation-2026-04-21",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-mechanical-engineers-technical-evaluation",
+          "sittingId": "professional-mechanical-engineers-technical-evaluation-2026-04-27",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-mechanical-engineers-technical-evaluation",
+          "sittingId": "professional-mechanical-engineers-technical-evaluation-2026-05-11",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-mechanical-engineers-technical-evaluation",
+          "sittingId": "professional-mechanical-engineers-technical-evaluation-2026-06-08",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-mechanical-engineers-technical-evaluation",
+          "sittingId": "professional-mechanical-engineers-technical-evaluation-2026-06-15",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-mechanical-engineers-technical-evaluation",
+          "sittingId": "professional-mechanical-engineers-technical-evaluation-2026-06-24",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-mechanical-engineers-technical-evaluation",
+          "sittingId": "professional-mechanical-engineers-technical-evaluation-2026-07-06",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-mechanical-engineers-technical-evaluation",
+          "sittingId": "professional-mechanical-engineers-technical-evaluation-2026-07-15",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-mechanical-engineers-technical-evaluation",
+          "sittingId": "professional-mechanical-engineers-technical-evaluation-2026-07-21",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-mechanical-engineers-technical-evaluation",
+          "sittingId": "professional-mechanical-engineers-technical-evaluation-2026-07-27",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-mechanical-engineers-technical-evaluation",
+          "sittingId": "professional-mechanical-engineers-technical-evaluation-2026-08-04",
+          "categoryId": "all"
+        }
+      ],
+      "reviewedAt": "2026-10-30",
+      "evidence": "Resolution 2163 (2026), page 3 groups eleven preceding regional sittings under August 12 target release; actual August 13 release names those locations. Resolution 2158 confirms San Fernando City, Pampanga April 14-16; resolutions 2192 and 2221 amend dates. This is a reviewed association using the release grouping and locations, not a claim that all examinations occurred in August.",
+      "unresolvedSittings": [
+        "Davao: August release names this location, but its only dated 2026 schedule entry is September 1-3 with December target release. Earlier evaluation dates remain unconfirmed."
+      ]
+    },
+    "https://www.prc.gov.ph/index.php/article/october-2026-professional-electronics-engineers-oral-examinationtechnical-evaluation": {
+      "publicationVersion": "2a4f5eb1d2ce7be611bdc6c26e7c67d5025b365fe55f4556dd193ec1e2007b75",
+      "selections": [
+        {
+          "examId": "professional-electronics-engineers-oral-examination",
+          "sittingId": "professional-electronics-engineers-oral-examination-2026-04-29",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-electronics-engineers-oral-examination",
+          "sittingId": "professional-electronics-engineers-oral-examination-2026-05-14",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-electronics-engineers-oral-examination",
+          "sittingId": "professional-electronics-engineers-oral-examination-2026-06-15",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-electronics-engineers-oral-examination",
+          "sittingId": "professional-electronics-engineers-oral-examination-2026-07-16",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-electronics-engineers-oral-examination",
+          "sittingId": "professional-electronics-engineers-oral-examination-2026-07-23",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-electronics-engineers-oral-examination",
+          "sittingId": "professional-electronics-engineers-oral-examination-2026-07-30",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-electronics-engineers-oral-examination",
+          "sittingId": "professional-electronics-engineers-oral-examination-2026-08-27",
+          "categoryId": "all"
+        },
+        {
+          "examId": "professional-electronics-engineer-oral-examination",
+          "sittingId": "professional-electronics-engineer-oral-examination-2026-10-08",
+          "categoryId": "all"
+        }
+      ],
+      "reviewedAt": "2026-10-30",
+      "evidence": "Resolution 2163 (2026), page 2 groups the preceding domestic sittings under October 23 release. Resolution 2189 adds Singapore July 23-24 and resolution 2251 adds NCR October 8, 9 and 12; both locations occur in the October 23 publication. Cancelled Cebu August 13-14 and future Davao November 19-20 are excluded.",
+      "unresolvedSittings": [
+        "Cebu: August 13-14 sitting was cancelled by resolution 2234; the October result still names Cebu. No replacement dates established.",
+        "Davao: October release names this location, but its dated schedule entry is November 19-20 with December target release. Earlier evaluation dates remain unconfirmed."
+      ]
+    }
+  }
 }

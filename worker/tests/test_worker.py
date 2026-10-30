@@ -12,7 +12,7 @@ from urllib.robotparser import RobotFileParser
 from worker.source import SourcePolicy, SourceError, fetch, parse_publication, parse_catalog, associate
 from worker.extract import validate_pages, write_names_file
 from worker.publish import publish_validated
-from worker.main import run, log_failure
+from worker.main import run, log_failure, discover
 
 
 NOW = datetime(2026, 10, 15, tzinfo=timezone.utc)
@@ -47,6 +47,26 @@ PAGES = ['TEST EXAM OCTOBER 2026\nLIST OF SUCCESSFUL EXAMINEES\n1 TEST, ALPHA',
 
 
 class SourceTests(unittest.TestCase):
+    def test_discovery_accepts_both_official_article_routes(self):
+        config = json.loads(Path('worker/config.json').read_text())
+        catalog = b'<table><tr><td>1</td><td>Test Engineers</td><td>October 8, 2026</td><td>Thursday</td><td>Manila</td></tr></table>'
+        for prefix in ('/article/', '/index.php/article/'):
+            with self.subTest(prefix=prefix):
+                url = 'https://www.prc.gov.ph' + prefix + 'test-results'
+                index = f'<a href="{url}">October 2026 Test Engineers Results Released</a>'.encode()
+                config.pop('catalogIndexUrl', None)
+                config['catalogUrl'] = 'https://www.prc.gov.ph/2026-schedule-examination'
+                pages = {config['catalogUrl']: catalog, config['resultsUrl']: index,
+                         url: b'<h1>October 2026 Test Engineers Results Released</h1>Posted on 15 October, 2026'}
+                policy = SourcePolicy(config['sourcePolicy'])
+                policy.load_robots(lambda *args, **kwargs: b'User-agent: *\nDisallow: /index.php/admin/')
+                _, publications = discover(config, policy, NOW, lambda url, _: pages[url])
+                self.assertEqual(len(publications), 1)
+                self.assertEqual(publications[0]['url'], url)
+                self.assertEqual(publications[0]['selection']['sittingId'], 'test-engineers-2026-10-08')
+                with self.assertRaises(SourceError):
+                    policy.check('https://www.prc.gov.ph/index.php/admin/')
+
     def policy(self):
         return SourcePolicy({'accessAuthorization': 'owner instruction 2026-10-15',
                              'routes': {'www.prc.gov.ph': ['/article/', '/sites/default/files/']}})

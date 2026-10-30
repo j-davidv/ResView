@@ -19,6 +19,14 @@ class SourceError(ValueError):
     pass
 
 
+def publication_identity_url(url):
+    parsed = urlsplit(url)
+    if parsed.hostname in ('www.prc.gov.ph', 'prc.gov.ph'):
+        path = parsed.path.removeprefix('/index.php') if parsed.path.startswith('/index.php/article/') else parsed.path
+        return parsed._replace(netloc='www.prc.gov.ph', path=path).geturl()
+    return url
+
+
 class SourcePolicy:
     def __init__(self, config):
         if not config.get('accessAuthorization') or not config.get('routes'):
@@ -33,7 +41,9 @@ class SourcePolicy:
         if (parsed.scheme != 'https' or parsed.hostname not in self.routes
                 or parsed.username or parsed.password or parsed.port not in (None, 443)
                 or '\\' in url or any(part in ('.', '..') for part in path.split('/'))
-                or not any(path.startswith(route) for route in self.routes[parsed.hostname])):
+                or not any((re.fullmatch(re.escape(route).replace(r'\{year\}', r'20\d{2}'), path)
+                            if '{year}' in route else path.startswith(route))
+                           for route in self.routes[parsed.hostname])):
             raise SourceError('Unapproved source route.')
         if self.require_robots and (parsed.hostname not in self.robots
                                    or not self.robots[parsed.hostname].can_fetch(USER_AGENT, url)):
@@ -197,7 +207,26 @@ def _slug(title):
     return re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
 
 
-def parse_catalog(body, url, now):
+def schedule_dates(value):
+    match = re.fullmatch(r'([A-Za-z]+ [\d\s,\-–]+(?:and |to )?[^()]*?),?\s+(20\d{2})', value)
+    if not match:
+        raise ValueError('Unrecognized schedule dates.')
+    year = int(match[2])
+    tokens = re.findall(r'[A-Za-z]+|\d+|[^\w\s]', match[1])
+    dates, month = [], None
+    for token in tokens:
+        if token in (',', '-', '–', 'and', 'to'):
+            continue
+        if token.isdigit():
+            dates.append(datetime(year, month, int(token), tzinfo=timezone.utc))
+        else:
+            month = datetime.strptime(token, '%B').month
+    if not dates or dates != sorted(dates):
+        raise ValueError('Unrecognized schedule order.')
+    return dates[0], dates[-1]
+
+
+def parse_catalog(body, url, now, overrides=()):
     page = Page(body)
     exams, sittings, review = {}, [], []
     provenance = {'catalogUrl': url, 'retrievedAtUtc': now.isoformat(),
@@ -210,22 +239,29 @@ def parse_catalog(body, url, now):
         exams[exam_id] = {'id': exam_id, 'title': title, **provenance}
         try:
             dates = row[2]
-            year = int(re.search(r'\b(20\d{2})\b', dates)[1])
-            month_name = re.match(r'([A-Za-z]+)', dates)[1]
-            month = datetime.strptime(month_name, '%B').month
-            before_year = dates[:dates.index(str(year))]
-            if re.search(r'[A-Za-z]+', re.sub(month_name + r'|and|to', '', before_year)):
-                raise ValueError('Multiple months require review.')
-            days = [int(day) for day in re.findall(r'\d+', before_year)]
-            # Sitting dates are calendar dates; UTC midnight preserves their day in the Dart contract.
-            start = datetime(year, month, min(days), tzinfo=timezone.utc)
-            end = datetime(year, month, max(days), tzinfo=start.tzinfo)
-            if not row[0].isdigit():
-                raise ValueError('Unnumbered special/oral sitting requires review.')
+            override = next((item for item in overrides if item['catalogUrl'] == url
+                             and item['examId'] == exam_id and item['officialDates'] == dates
+                             and item['officialTestingCenters'] == row[4]), None)
+            if override:
+                if override.get('cancelled'):
+                    review.append({'examId': exam_id, 'reason': 'Schedule row needs date/type review.',
+                                   'officialDates': dates, 'status': 'cancelled'})
+                    continue
+                start, end = schedule_dates(override['reviewedDates'])
+            else:
+                if re.search(r'cancel|resched|additional days', row[4], re.I):
+                    raise ValueError('Location-specific schedule change requires review.')
+                start, end = schedule_dates(dates)
+            special = bool(re.search(r'\(SPLE\s*\)', title, re.I))
+            oral = bool(re.search(r'oral|technical evaluation', title, re.I))
+            if not row[0].isdigit() and not (special or oral):
+                raise ValueError('Unrecognized unnumbered sitting.')
             sitting_id = f'{exam_id}-{start.date().isoformat()}'
             sittings.append({'id': sitting_id, 'examId': exam_id, 'start': start.isoformat(),
-                             'end': end.isoformat(), 'type': 'special' if '(SPLE' in title else 'domestic', 'location': '',
-                             'categories': {'all': 'All successful examinees'},
+                             'end': end.isoformat(), 'type': 'special' if special else 'oral' if oral else 'domestic',
+                             'location': row[4].split('Resolution')[0].split('Reso no.')[0].strip() if special or oral else '',
+                             'categories': ({'elementary': 'Elementary', 'secondary': 'Secondary'}
+                                            if 'Professional Teachers' in title else {'all': 'All successful examinees'}),
                              'officialDates': dates, 'officialTestingCenters': row[4], **provenance})
         except (ValueError, TypeError, IndexError):
             review.append({'examId': exam_id, 'reason': 'Schedule row needs date/type review.',
@@ -235,18 +271,48 @@ def parse_catalog(body, url, now):
     return {'exams': list(exams.values()), 'sittings': sittings, 'review': review, 'catalogUrl': url}
 
 
-def associate(publication, catalog):
+def associations(publication, catalog):
     title = _exam_title(publication['title']).lower()
     month = re.match(r'([a-z]+) (20\d{2})\b', title)
     if not month:
-        return None
+        return []
+    special = bool(re.search(r'special prof|\bsple\b', title))
     candidates = []
+    matches = []
     for exam in catalog['exams']:
-        if exam['title'].lower() not in title:
+        name = exam['title'].lower()
+        if bool(re.search(r'\(sple\s*\)', name)) != special:
             continue
+        if re.search(r'oral|technical evaluation|written|practical|revalida', name):
+            continue
+        name = re.sub(r'\s*\(sple\s*\)', '', name)
+        name = {'veterinary medicine': 'veterinarians', 'food technologist': 'food technologists',
+                'architect': 'architects', 'customs broker': 'customs brokers',
+                'chemical technician': 'chemical technicians', 'sanitary engineer': 'sanitary engineers'}.get(name, name)
+        if not re.search(r'(?<!\w)' + re.escape(name) + r'(?!\w)', title):
+            continue
+        # Professional/oral announcements must never attach to the ordinary engineer exam.
+        if re.search(r'professional (?:electronics|electrical|mechanical) engineers', title):
+            continue
+        matches.append((exam, name))
+    for exam, name in matches:
+        if any(name != other and name in other for _, other in matches):
+            continue
+        sittings = []
         for sitting in catalog['sittings']:
             date = datetime.fromisoformat(sitting['start'])
             if (sitting['examId'] == exam['id'] and date.strftime('%B').lower() == month[1]
-                    and date.year == int(month[2]) and len(sitting['categories']) == 1):
-                candidates.append({'examId': exam['id'], 'sittingId': sitting['id'], 'categoryId': 'all'})
+                    and date.year == int(month[2]) and (sitting['type'] == 'special') == special
+                    and sitting['type'] != 'oral'):
+                sittings.append(sitting)
+        if len(sittings) > 1:
+            return []
+        for sitting in sittings:
+            for category in sitting['categories']:
+                candidates.append({'examId': exam['id'], 'sittingId': sitting['id'], 'categoryId': category})
+    return candidates
+
+
+def associate(publication, catalog):
+    candidates = associations(publication, catalog)
     return candidates[0] if len(candidates) == 1 else None
