@@ -132,6 +132,16 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(self.scan(), 0)
         self.provider.upload.assert_not_called()
 
+    def test_revocation_does_not_allow_immutable_version_bytes_to_change(self):
+        self.reviewed['disabled'] = True
+        self.assertEqual(self.scan(), 0)
+        self.reviewed['disabled'] = False
+        self.report = {**self.report, 'validatedAtUtc': self.now.isoformat()}
+        self.assertEqual(self.scan(), 1)
+        self.assertEqual(self.current()['state'], 'checkingUnavailable')
+        self.assertNotIn('namesUrl', self.current())
+        self.assertEqual(self.current()['namesSha256'], self.original['namesSha256'])
+
     def test_changed_pinned_mapping_revokes_without_publishing_unreviewed_association(self):
         catalog_url = 'https://www.prc.gov.ph/2026-schedule-examination'
         results_url = 'https://www.prc.gov.ph/articles/exam-results'

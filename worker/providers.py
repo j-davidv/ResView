@@ -63,6 +63,7 @@ class Providers:
         self.db.collection('publications').document(key).set(record)
 
     def _switch(self, record, *, fallback=False, pending=False):
+        record = dict(record)
         selection_id = identifier(record['selection'])
         version_id = identifier([record['selection'], record['documentVersion']])
         pointer = self.db.collection('workerState').document(selection_id)
@@ -82,11 +83,14 @@ class Providers:
                 return
             if old_id and old_id != version_id and existing:
                 raise ValueError('Refusing to reactivate a historical version.')
+            if existing.get('namesSha256'):
+                if record['state'] == 'checkingAvailable' and existing['namesSha256'] != record.get('namesSha256'):
+                    raise ValueError('Immutable document version changed bytes.')
+                if record['state'] == 'checkingUnavailable':
+                    record['namesSha256'] = existing['namesSha256']
             if existing.get('state') == 'checkingAvailable' and record['state'] == 'checkingAvailable':
                 if fallback:
                     return
-                if existing.get('namesSha256') != record.get('namesSha256'):
-                    raise ValueError('Immutable document version changed bytes.')
                 if record.get('lastSuccessfulCheckUtc'):
                     transaction.update(target, {'lastSuccessfulCheckUtc': record['lastSuccessfulCheckUtc'],
                                                 'publicationVersion': record.get('publicationVersion')})
