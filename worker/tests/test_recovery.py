@@ -106,6 +106,17 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(self.scan(), 1)
         self.provider.upload.assert_not_called()
 
+    def test_malformed_pdf_revokes_the_previous_available_version(self):
+        broken = b'%PDF-1.7\ntruncated'
+        def fetcher(url, policy, **kwargs):
+            if url.endswith('/robots.txt'):
+                return b'User-agent: *\nDisallow:'
+            return broken if url.endswith('.pdf') else self.html
+        self.assertEqual(run(self.config, self.provider, self.now, fetcher), 1)
+        self.assertEqual(self.current()['state'], 'checkingUnavailable')
+        self.assertNotIn('namesUrl', self.current())
+        self.provider.upload.assert_not_called()
+
     def test_changed_link_revokes_old_list_without_fetching_unreviewed_document(self):
         self.html = self.html.replace(b'test.pdf', b'correction.pdf')
         self.assertEqual(self.scan(), 1)
