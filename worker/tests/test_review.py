@@ -52,3 +52,28 @@ class ReviewTests(unittest.TestCase):
                 with self.assertRaises(OSError):
                     review.acquire({'selections': [{'documents': ['allowed']}]}, Mock(), Path(directory), Path('public.pem'))
             self.assertEqual(list(Path(directory).iterdir()), [])
+
+    def test_new_announcement_is_kept_when_last_good_version_is_older(self):
+        publication = {'selection': SELECTION, 'publicationUrl': URL + '-new',
+                       'publicationVersion': 'new-announcement', 'documents': ['new-pdf']}
+        version = {'selection': SELECTION, 'publicationUrl': URL, 'current': True,
+                   'state': 'checkingAvailable', 'documentVersion': 'old-pdf'}
+        rows = review.inventory([publication], [version], NOW)['selections']
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['state'], 'notCurrent')
+        self.assertEqual(rows[0]['documents'], ['new-pdf'])
+        self.assertNotIn('documentVersion', rows[0])
+
+    def test_combined_announcement_candidates_need_review_and_exclude_top_lists(self):
+        report = {'selections': [{'publicationUrl': URL, 'documents': []},
+                                 {'publicationUrl': URL, 'documents': []}]}
+        html = b'<a href="/sites/default/files/secondary.pdf">List of Successful Examinees for Secondary</a><a href="/top.pdf">Successful Examinees who garnered the top 10</a>'
+        with tempfile.TemporaryDirectory() as directory:
+            with patch('worker.review.fetch', return_value=html) as article, \
+                 patch('worker.review.fetch_pdf', side_effect=SourceError('Restricted')) as pdf:
+                review.acquire(report, Mock(), Path(directory), Path('public.pem'))
+            article.assert_called_once()
+            pdf.assert_called_once()
+            self.assertEqual(pdf.call_args.args[0], 'https://www.prc.gov.ph/sites/default/files/secondary.pdf')
+            self.assertEqual(report['selections'][0]['documents'], [])
+            self.assertIn('candidateDocuments', report['selections'][0])

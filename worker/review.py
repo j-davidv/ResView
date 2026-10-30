@@ -8,10 +8,11 @@ import subprocess
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urljoin
 
 from worker.documents import fetch_pdf
 from worker.extract import encode
-from worker.source import SourceError, SourcePolicy, fetch, publication_identity_url
+from worker.source import Page, SourceError, SourcePolicy, fetch, publication_identity_url
 
 
 def inventory(publications, versions, now):
@@ -20,7 +21,7 @@ def inventory(publications, versions, now):
     for publication in publications:
         version = current.get(encode(publication['selection']), {})
         if version and publication_identity_url(version['publicationUrl']) != publication_identity_url(publication['publicationUrl']):
-            continue
+            version = {'state': 'notCurrent'}
         row = {key: publication[key] for key in
                ('selection', 'publicationUrl', 'publicationVersion', 'documents')}
         row.update({key: version[key] for key in
@@ -33,7 +34,23 @@ def inventory(publications, versions, now):
 
 def acquire(report, policy, output, certificate):
     report['downloads'] = []
-    urls = sorted({url for row in report['selections'] for url in row['documents']})
+    candidates = {}
+    for row in report['selections']:
+        if row['documents']:
+            continue
+        url = row['publicationUrl']
+        if url not in candidates:
+            try:
+                candidates[url] = [{'url': urljoin(url, link), 'label': label}
+                    for link, label in Page(fetch(url, policy)).links
+                    if label.lower().startswith(('list of successful examinees', 'roll of successful examinees'))
+                    and 'top' not in label.lower()]
+            except (ValueError, OSError, http.client.HTTPException) as error:
+                candidates[url] = []
+                row['candidateReviewError'] = type(error).__name__
+        row['candidateDocuments'] = candidates[url]
+    urls = sorted({url for row in report['selections'] for url in row['documents']}
+                  | {item['url'] for links in candidates.values() for item in links})
     for url in urls:
         record = {'documentUrl': url, 'attemptedAtUtc': datetime.now(timezone.utc).isoformat()}
         try:
@@ -71,8 +88,12 @@ def main():
                        [row.to_dict() for row in database.collection('resultVersions').stream()],
                        datetime.now(timezone.utc))
     report['monitor'] = database.document('monitor/status').get().to_dict()
-    report['mappingReviews'] = [row.to_dict() for row in database.collection('workerReview').stream()
-                                if row.to_dict().get('status') == 'pending']
+    report['mappingReviews'] = []
+    for snapshot in database.collection('workerReview').stream():
+        row = snapshot.to_dict()
+        if row.get('status') == 'pending':
+            report['mappingReviews'].append({key: row[key] for key in
+                ('publicationUrl', 'examId', 'officialDates', 'reason') if key in row})
     args.output.mkdir(parents=True, exist_ok=True)
     if args.acquire:
         certificate = os.environ.get('PRC_REVIEW_CERTIFICATE', '')
