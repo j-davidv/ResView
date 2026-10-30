@@ -98,6 +98,8 @@ def discover(config, policy, now, fetcher):
             raise SourceError('Unexpected results pagination route.')
         results_url = next_url
     catalog['discovery'] = {'indexPages': len(visited), 'articleUrls': len(seen), 'coverageStartYear': first_year}
+    # The index is newest-first, including announcements with the same posted date.
+    publications.reverse()
     publications.sort(key=lambda item: item['publication']['publishedAtUtc'])
     return catalog, publications
 

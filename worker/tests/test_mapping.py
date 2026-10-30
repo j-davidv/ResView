@@ -15,6 +15,23 @@ def table(rows):
 
 
 class MappingTests(unittest.TestCase):
+    def test_same_day_correction_uses_newest_official_index_entry(self):
+        config = {'sourcePolicy': {'accessAuthorization': 'test', 'routes': {
+            'www.prc.gov.ph': ['/article/', '/articles/', '/2026-schedule-examination']}},
+            'catalogUrl': ROOT + '/2026-schedule-examination',
+            'resultsUrl': ROOT + '/articles/exam-results'}
+        pages = {
+            config['catalogUrl']: table([['1', 'Testers', 'May 1, 2026', '', 'NCR']]),
+            config['resultsUrl']: b'<a href="/article/newer">Testers Results</a><a href="/article/older">Testers Results</a>',
+            ROOT + '/article/newer': b'<h1>May 2026 Testers Results Corrected</h1>Posted on 2 May, 2026',
+            ROOT + '/article/older': b'<h1>May 2026 Testers Results</h1>Posted on 2 May, 2026',
+        }
+        provider = Mock()
+        self.assertEqual(run(config, provider, NOW, lambda u, p, **kw:
+            b'User-agent: *\nDisallow:' if u.endswith('/robots.txt') else pages[u]), 0)
+        provider.unavailable.assert_called_once()
+        self.assertEqual(provider.unavailable.call_args.args[0]['publicationUrl'], ROOT + '/article/newer')
+
     def test_exam_name_can_follow_punctuation_without_matching_inside_words(self):
         catalog = parse_catalog(table([
             ['1', 'Foreign Medical Professionals', 'September 1 and 2, 2026', '', 'NCR'],
