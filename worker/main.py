@@ -155,8 +155,11 @@ def run(config, providers, now, fetcher=fetch):
                 providers.unavailable(publication, 'Checking for this reviewed format has been disabled.',
                                       observed_version=reviewed['originalSha256'])
                 continue
-            if reviewed['documentUrl'] not in publication['documents']:
-                providers.unavailable(publication, 'The official document link changed and requires review.')
+            linked_documents = publication['documents'] + [candidate['url']
+                for candidate in publication.get('documentCandidates', [])]
+            if reviewed['documentUrl'] not in linked_documents:
+                providers.unavailable(publication, 'The official document link changed and requires review.',
+                                      observed_version=publication['sourceSha256'])
                 failures += 1
                 continue
             with TemporaryDirectory() as directory:

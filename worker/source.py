@@ -194,10 +194,14 @@ def parse_publication(url, body, now):
         tzinfo=timezone(timedelta(hours=8))).astimezone(timezone.utc)
     documents = sorted({urljoin(url, link) for link, label in page.links
                         if label.strip().lower() in ('list of successful examinees', 'list of passers')})
+    candidates = [{'url': urljoin(url, link), 'label': label} for link, label in page.links
+                  if label.lower().startswith(('list of successful examinees ', 'roll of successful examinees '))
+                  and 'top' not in label.lower()]
     version = hashlib.sha256((titles[0] + text + repr(documents)).encode()).hexdigest()
     return {'title': titles[0], 'publicationUrl': url, 'publishedAtUtc': date.isoformat(),
             'retrievedAtUtc': now.isoformat(), 'sourceSha256': hashlib.sha256(body).hexdigest(),
-            'publicationVersion': version, 'documents': documents, 'type': 'PRC result publication'}
+            'publicationVersion': version, 'documents': documents, 'documentCandidates': candidates,
+            'type': 'PRC result publication'}
 
 
 def _exam_title(title):

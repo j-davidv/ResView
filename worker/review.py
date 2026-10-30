@@ -24,8 +24,9 @@ def inventory(publications, versions, now):
             version = {'state': 'notCurrent'}
         row = {key: publication[key] for key in
                ('selection', 'publicationUrl', 'publicationVersion', 'documents')}
+        row['candidateDocuments'] = publication.get('documentCandidates', [])
         row.update({key: version[key] for key in
-                    ('documentVersion', 'reason', 'lastSuccessfulCheckUtc') if key in version})
+                    ('documentVersion', 'documentUrl', 'reason', 'lastSuccessfulCheckUtc') if key in version})
         row['state'] = version.get('state', 'notPublished')
         rows.append(row)
     return {'generatedAtUtc': now.isoformat(), 'selections': rows,

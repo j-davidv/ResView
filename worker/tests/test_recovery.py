@@ -106,6 +106,17 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(self.scan(), 1)
         self.provider.upload.assert_not_called()
 
+    def test_changed_qualified_link_revokes_even_with_same_legacy_publication_version(self):
+        self.html = self.html.replace(b'List of Successful Examinees', b'List of Successful Examinees in the Test Exam')
+        self.assertEqual(self.scan(), 0)
+        prior_version = self.current()['publicationVersion']
+        self.html = self.html.replace(b'test.pdf', b'changed.pdf')
+        self.assertEqual(parse_publication(URL, self.html, self.now)['publicationVersion'], prior_version)
+        self.assertEqual(self.scan(), 1)
+        self.assertEqual(self.current()['state'], 'checkingUnavailable')
+        self.assertNotIn('namesUrl', self.current())
+        self.assertEqual(self.scan(), 1)
+
     def test_malformed_pdf_revokes_the_previous_available_version(self):
         broken = b'%PDF-1.7\ntruncated'
         self.reviewed['originalSha256'] = hashlib.sha256(broken).hexdigest()

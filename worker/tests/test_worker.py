@@ -47,6 +47,16 @@ PAGES = ['TEST EXAM OCTOBER 2026\nLIST OF SUCCESSFUL EXAMINEES\n1 TEST, ALPHA',
 
 
 class SourceTests(unittest.TestCase):
+    def test_qualified_candidates_do_not_change_legacy_version_or_include_navigation(self):
+        body = b'<article><h1>Test Results</h1>Posted on 15 October, 2026<a href="/a.pdf">List of Successful Examinees in the Test Examination</a><a href="/top.pdf">List of Successful Examinees in the top 10</a></article><a href="/nav.pdf">List of Successful Examinees for Other</a>'
+        result = parse_publication(URL, body, NOW)
+        self.assertEqual(result['documents'], [])
+        self.assertEqual(result['documentCandidates'], [{'url': 'https://www.prc.gov.ph/a.pdf',
+            'label': 'List of Successful Examinees in the Test Examination'}])
+        changed_link = parse_publication(URL, body.replace(b'/a.pdf', b'/b.pdf'), NOW)
+        self.assertEqual(result['publicationVersion'], changed_link['publicationVersion'])
+        self.assertNotEqual(result['documentCandidates'], changed_link['documentCandidates'])
+
     def test_discovery_accepts_both_official_article_routes(self):
         config = json.loads(Path('worker/config.json').read_text())
         catalog = b'<table><tr><td>1</td><td>Test Engineers</td><td>October 8, 2026</td><td>Thursday</td><td>Manila</td></tr></table>'

@@ -21,6 +21,25 @@ BODY = b'%PDF-synthetic-reviewed-content'
 
 
 class DocumentTests(unittest.TestCase):
+    def test_reviewed_qualified_list_link_can_be_validated_without_guessing_selection(self):
+        reviewed = {**profile(), 'documentUrl': DRIVE_URL, 'originalSha256': hashlib.sha256(BODY).hexdigest()}
+        report = validate_pages(PAGES, reviewed['originalSha256'], reviewed, NOW)
+        config = {'sourcePolicy': {'accessAuthorization': 'test', 'driveApi': True,
+                    'routes': {'www.prc.gov.ph': ['/article/']}},
+                  'publications': [{'url': URL, 'selection': SELECTION, 'profile': reviewed}]}
+        html = f'<article><h1>Test Results</h1>Posted on 15 October, 2026<a href="{DRIVE_URL}">List of Successful Examinees in the Test Examination</a></article>'.encode()
+        with patch('worker.main.fetch_pdf', return_value=BODY), \
+             patch('worker.main.extract_pdf', return_value=report), \
+             patch('worker.main.publish_validated') as publish:
+            self.assertEqual(run(config, Mock(), NOW, Mock(return_value=html)), 0)
+        publish.assert_called_once()
+
+        with patch('worker.main.fetch_pdf') as download, patch('worker.main.publish_validated') as publish:
+            self.assertEqual(run(config, Mock(), NOW,
+                Mock(return_value=html.replace(DRIVE_ID.encode(), b'changed-file-id'))), 1)
+        download.assert_not_called()
+        publish.assert_not_called()
+
     def setUp(self):
         self.policy = SourcePolicy({'accessAuthorization': 'test', 'driveApi': True,
             'routes': {'www.prc.gov.ph': ['/sites/default/files/']}})

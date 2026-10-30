@@ -1,6 +1,6 @@
 # Name-list format validation
 
-Status on 2026-10-30: **one exact document version approved privately, published, checked on Android and retrieved automatically by the hosted worker**. The September 28, 2026 Ocular Pharmacologists original passes complete independent row and visual validation. The plan's earlier archival-PDF counts remain unreproduced; the inspected Foresters list refuses downloading.
+Status on 2026-10-30: **four exact document versions approved privately and published**. Task 9 adds Midwives SPLE (3 rows), Occupational Therapists (66) and Physical Therapists (526), with complete independent comparison, visual review, refusal tests and real public-transfer Flutter checks. See [coverage evidence and ongoing review](prc-coverage-review.md). Physical-phone checking remains demonstrated only for Ocular Pharmacologists. The September 28, 2026 Ocular Pharmacologists original passes complete independent row and visual validation. The plan's earlier archival-PDF counts remain unreproduced; the inspected Foresters list refuses downloading.
 
 The accessible original and source chain remain under ignored `.development/task4/`. MuPDF 1.28.2, a visual transcript and pypdf 6.20.1 agree on every row (one). Physical page 1 is labelled `Page: 2 of 2`; the original was not altered or assumed incomplete. Exact-version approval, hashes, timestamp, category/count decisions and test evidence are recorded in [task 5 evidence](prc-core-checklist.md#5-validate-the-document-and-enable-its-extraction-profile).
 
