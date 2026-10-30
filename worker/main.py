@@ -166,6 +166,8 @@ def run(config, providers, now, fetcher=fetch):
                                           observed_version=hashlib.sha256(body).hexdigest())
                     failures += 1
                     continue
+                providers.unavailable(publication, 'The validated current document awaits asset publication.',
+                                      observed_version=report['documentVersion'], pending=True)
                 names = Path(directory) / 'names.json'
                 write_names_file(report, names)
                 publish_validated(report, names, providers, publication=publication)

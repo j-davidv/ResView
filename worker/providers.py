@@ -62,7 +62,7 @@ class Providers:
         key = identifier([record['selection'], publication_identity_url(record['publicationUrl'])])
         self.db.collection('publications').document(key).set(record)
 
-    def _switch(self, record, *, fallback=False):
+    def _switch(self, record, *, fallback=False, pending=False):
         selection_id = identifier(record['selection'])
         version_id = identifier([record['selection'], record['documentVersion']])
         pointer = self.db.collection('workerState').document(selection_id)
@@ -73,6 +73,8 @@ class Providers:
             prior = pointer.get(transaction=transaction).to_dict() or {}
             existing = target.get(transaction=transaction).to_dict() or {}
             old_id = prior.get('versionId')
+            if pending and old_id == version_id and existing.get('state') == 'checkingAvailable':
+                return
             if fallback and prior.get('publicationVersion') == record.get('publicationVersion') and old_id:
                 if record.get('lastSuccessfulCheckUtc'):
                     transaction.update(self.db.collection('resultVersions').document(old_id),
@@ -97,13 +99,13 @@ class Providers:
             transaction.set(pointer, {'versionId': version_id, 'publicationVersion': record.get('publicationVersion')})
         switch(self.db.transaction())
 
-    def unavailable(self, publication, reason, *, observed_version=None):
+    def unavailable(self, publication, reason, *, observed_version=None, pending=False):
         record = {key: publication[key] for key in ('selection', 'publicationUrl')}
         record.update(documentVersion=observed_version or publication['publicationVersion'],
                       publicationVersion=publication['publicationVersion'], current=True,
                       lastSuccessfulCheckUtc=publication['retrievedAtUtc'],
                       state='checkingUnavailable', reason=reason)
-        self._switch(record, fallback=observed_version is None)
+        self._switch(record, fallback=observed_version is None, pending=pending)
 
     def activate(self, record):
         self._switch(record)

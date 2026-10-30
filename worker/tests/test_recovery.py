@@ -182,6 +182,19 @@ class RecoveryTests(unittest.TestCase):
                 self.assertEqual(self.current(), self.original)
                 self.assertEqual(self.db.rows['monitor/status']['freshness'], 'stale')
 
+    def test_failed_correction_upload_does_not_leave_known_old_list_usable(self):
+        self.body = b'%PDF-reviewed-correction'
+        version = hashlib.sha256(self.body).hexdigest()
+        self.reviewed['originalSha256'] = version
+        self.report = {**self.report, 'documentVersion': version, 'originalSha256': version}
+        self.provider.upload.side_effect = ValueError('Synthetic upload failure.')
+        self.assertEqual(self.scan(), 1)
+        self.assertEqual(self.current()['documentVersion'], version)
+        self.assertEqual(self.current()['state'], 'checkingUnavailable')
+        self.assertNotIn('namesUrl', self.current())
+        old_id = identifier([SELECTION, self.original['documentVersion']])
+        self.assertEqual(self.db.rows['resultVersions/' + old_id]['state'], 'superseded')
+
     def test_successful_manual_rerun_is_idempotent_and_refreshes_health(self):
         before = set(self.db.rows)
         self.assertEqual(self.scan(), 0)
