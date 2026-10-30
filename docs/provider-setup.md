@@ -8,7 +8,7 @@ The live metadata checks used existing authorized Firebase CLI sign-in, refreshe
 
 ## Deployment state on 2026-10-15
 
-The reviewed worker/workflow is published on `j-davidv/ResView:main`. It tests PR/push changes and supports manual live execution. The October 30 task 8 update changes cron to `37 * * * *` to fit the current archive's free write budget; the earlier deployment used `7,37 * * * *`. Live jobs require `main`; cron also requires `PRC_MONITOR_ENABLED=true`. PRs receive no live credentials. Verified upstream action revisions are pinned. Permissions are repository read-only plus OIDC issuance for the live job.
+The reviewed worker/workflow is published on `j-davidv/ResView:main`. It tests PR/push changes and supports manual live execution. The October 30 task 8 update changes cron to `57 * * * *` to fit the current archive's free write budget; the earlier deployment used `7,37 * * * *`. Live jobs require `main`; cron also requires `PRC_MONITOR_ENABLED=true`. PRs receive no live credentials. Verified upstream action revisions are pinned. Permissions are repository read-only plus OIDC issuance for the live job.
 
 Dedicated Google OIDC identity/custom role and GitHub identity variables are configured and read back. The role has exactly five required Firestore permissions, no delete or administration, and no user-managed key. Repository/owner numeric IDs, main, exact workflow and approved events constrain federation. See [deployment evidence](worker-deployment-review.md).
 

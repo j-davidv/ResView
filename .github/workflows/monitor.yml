@@ -8,7 +8,7 @@ on:
         type: boolean
         default: false
   schedule:
-    - cron: '37 * * * *'
+    - cron: '57 * * * *'
   push:
     paths: ['worker/**', '.github/workflows/monitor.yml']
   pull_request:
