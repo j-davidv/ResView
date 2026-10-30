@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public metadata is worker-owned; private preferences contain only these four fields.
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function validId(value) {
+      return value is string && value.size() > 0 && value.size() <= 256
+        && value.matches('[^/\\s]+');
+    }
+
+    function validPreference(data) {
+      return data.keys().hasAll(['enabled', 'selection', 'token', 'lastActiveAtUtc'])
+        && data.keys().hasOnly(['enabled', 'selection', 'token', 'lastActiveAtUtc'])
+        && data.enabled == true
+        && data.selection is map
+        && data.selection.keys().hasAll(['examId', 'sittingId', 'categoryId'])
+        && data.selection.keys().hasOnly(['examId', 'sittingId', 'categoryId'])
+        && validId(data.selection.examId)
+        && validId(data.selection.sittingId)
+        && validId(data.selection.categoryId)
+        && data.token is string && data.token.size() > 0 && data.token.size() <= 4096
+        && data.lastActiveAtUtc is timestamp && data.lastActiveAtUtc == request.time;
+    }
+
+    match /exams/{id} {
+      allow read: if true;
+    }
+    match /sittings/{id} {
+      allow read: if true;
+    }
+    match /publications/{id} {
+      allow read: if true;
+    }
+    match /resultVersions/{id} {
+      allow read: if true;
+    }
+    match /monitor/status {
+      allow get: if true;
+    }
+    match /pushPreferences/{uid} {
+      allow get, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validPreference(request.resource.data);
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

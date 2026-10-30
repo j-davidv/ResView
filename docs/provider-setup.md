@@ -1,5 +1,7 @@
 # Worker deployment and recovery
 
+October 30 task 9 update: four exact-version profiles are configured privately, including Midwives SPLE, Occupational Therapists and Physical Therapists. Their immutable JSON assets passed public read-back and Flutter checks before activation. The review workflow emits a read-only coverage inventory and can retrieve encrypted originals. Its public certificate is stored in `PRC_REVIEW_CERTIFICATE`; the private key remains local. No Storage writer secret or IAM grant was added. See [coverage review](prc-coverage-review.md).
+
 October 30 automatic-retrieval update: the approved PDF is now fetched and revalidated through the documented Drive API using the existing worker's read-only OAuth credentials. Hosted run 41018013099 passes. The Drive API is enabled with billing disabled/no account linked. Private profiles are supplied through encrypted `PRC_PRIVATE_PROFILES`; the public config stays empty. Existing immutable public names assets can be reused without giving CI a Storage writer credential. New assets still require the private publisher. Owner download restrictions remain enforced. See [live retrieval evidence](prc-update-verification.md#hosted-automatic-pdf-retrieval). Actual scheduled invocation remains pending.
 
 Existing Firebase Standard/Spark `resview-9240c` still has billing disabled/no linked account. Supabase remains the existing Free project and public JSON-only `validated-names` bucket. No paid service, service-account key or outbound message was created.

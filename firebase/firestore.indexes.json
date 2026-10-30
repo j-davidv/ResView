@@ -1,0 +1,33 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "sittings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "examId", "order": "ASCENDING" },
+        { "fieldPath": "start", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "publications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "selection.examId", "order": "ASCENDING" },
+        { "fieldPath": "selection.sittingId", "order": "ASCENDING" },
+        { "fieldPath": "selection.categoryId", "order": "ASCENDING" },
+        { "fieldPath": "publishedAtUtc", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "resultVersions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "selection.examId", "order": "ASCENDING" },
+        { "fieldPath": "selection.sittingId", "order": "ASCENDING" },
+        { "fieldPath": "selection.categoryId", "order": "ASCENDING" },
+        { "fieldPath": "current", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
