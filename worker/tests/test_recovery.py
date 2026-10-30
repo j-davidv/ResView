@@ -108,6 +108,7 @@ class RecoveryTests(unittest.TestCase):
 
     def test_malformed_pdf_revokes_the_previous_available_version(self):
         broken = b'%PDF-1.7\ntruncated'
+        self.reviewed['originalSha256'] = hashlib.sha256(broken).hexdigest()
         def fetcher(url, policy, **kwargs):
             if url.endswith('/robots.txt'):
                 return b'User-agent: *\nDisallow:'

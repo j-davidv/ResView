@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import http.client
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone, timedelta
@@ -10,6 +11,7 @@ from tempfile import TemporaryDirectory
 from urllib.parse import urljoin, urlsplit
 
 from worker.extract import extract_pdf, write_names_file
+from worker.documents import fetch_pdf
 from worker.publish import publish_validated
 from worker.source import SourceError, SourcePolicy, fetch, parse_publication, parse_catalog, associations, Page, publication_identity_url
 
@@ -159,7 +161,7 @@ def run(config, providers, now, fetcher=fetch):
                 continue
             with TemporaryDirectory() as directory:
                 original = Path(directory) / 'source.pdf'
-                body = fetcher(reviewed['documentUrl'], policy)
+                body = fetch_pdf(reviewed['documentUrl'], policy, fetcher=fetcher)
                 original.write_bytes(body)
                 try:
                     report = extract_pdf(original, reviewed, now)
@@ -168,6 +170,7 @@ def run(config, providers, now, fetcher=fetch):
                                           observed_version=hashlib.sha256(body).hexdigest())
                     failures += 1
                     continue
+                print(f'Validated official PDF: {len(body)} bytes; SHA-256 {report["originalSha256"]}')
                 providers.unavailable(publication, 'The validated current document awaits asset publication.',
                                       observed_version=report['documentVersion'], pending=True)
                 names = Path(directory) / 'names.json'
@@ -189,6 +192,11 @@ def main():
     args = parser.parse_args()
     try:
         config = json.loads(args.config.read_text(encoding='utf-8'))
+        if os.environ.get('PRC_PRIVATE_PROFILES'):
+            profiles = json.loads(os.environ['PRC_PRIVATE_PROFILES'])
+            if not isinstance(profiles, dict) or any(not isinstance(value, dict) for value in profiles.values()):
+                raise ValueError('Private profiles must be a map of reviewed profiles.')
+            config['profiles'] = {**config.get('profiles', {}), **profiles}
         SourcePolicy(config.get('sourcePolicy', {}))
         if not args.live_sources:
             raise SourceError('Use --live-sources explicitly; there is no demo fallback.')

@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 from urllib.robotparser import RobotFileParser
 
 from worker.source import SourcePolicy, SourceError, fetch, parse_publication, parse_catalog, associate
-from worker.extract import validate_pages, write_names_file
+from worker.extract import extract_pdf, validate_pages, write_names_file
 from worker.publish import publish_validated
 from worker.main import run, log_failure, discover
 
@@ -158,6 +158,15 @@ class SourceTests(unittest.TestCase):
 
 
 class ExtractionTests(unittest.TestCase):
+    def test_unreviewed_bytes_are_rejected_before_pdf_parser(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'changed.pdf'
+            path.write_bytes(b'%PDF-unreviewed-content')
+            with patch('pypdf.PdfReader') as reader:
+                with self.assertRaises(ValueError):
+                    extract_pdf(path, profile(), NOW)
+                reader.assert_not_called()
+
     def test_repeated_extraction_has_identical_bytes(self):
         first = validate_pages(PAGES, 'a' * 64, profile(), NOW)
         repeated = validate_pages(PAGES, 'a' * 64, profile(), NOW + timedelta(hours=1))
@@ -269,7 +278,7 @@ class MainTests(unittest.TestCase):
 
     def config(self):
         return {'sourcePolicy': {'accessAuthorization': 'owner instruction',
-                                'routes': {'www.prc.gov.ph': ['/article/']}},
+                                'routes': {'www.prc.gov.ph': ['/article/', '/sites/default/files/']}},
                 'publications': [{'url': URL, 'selection': SELECTION}]}
 
     def test_real_publication_without_validated_list_has_official_link_fallback(self):

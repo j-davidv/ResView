@@ -64,6 +64,7 @@ jobs:
           FIREBASE_PROJECT_ID: resview-9240c
           SUPABASE_STORAGE_HOST: erlnuyltaudetjpriosu.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PRC_PRIVATE_PROFILES: ${{ secrets.PRC_PRIVATE_PROFILES }}
         run: python -m worker.main --config worker/config.json --live-sources --delivery disabled
       - name: Diagnose public source connectivity after failure
         if: failure()

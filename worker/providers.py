@@ -162,6 +162,10 @@ class Providers:
             connection.close()
 
     def upload(self, key, body):
+        if not self.storage_key:
+            if self.download(key) == body:
+                return
+            raise ValueError('A new asset requires worker Storage credentials.')
         path = '/storage/v1/object/validated-names/' + quote(key, safe='/')
         status, _ = self._storage('POST', path, body)
         if status in (400, 409) and self.download(key) == body:

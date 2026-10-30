@@ -32,6 +32,7 @@ class SourcePolicy:
         if not config.get('accessAuthorization') or not config.get('routes'):
             raise SourceError('Live source access is not configured.')
         self.routes = config['routes']
+        self.drive_api_enabled = config.get('driveApi') is True
         self.robots = {}
         self.require_robots = False
 
@@ -59,7 +60,7 @@ class SourcePolicy:
         self.require_robots = True
 
 
-def _request(url, address, limit, timeout):
+def _request(url, address, limit, timeout, *, headers=None):
     parsed = urlsplit(url)
     connection = http.client.HTTPSConnection(parsed.hostname, timeout=timeout)
     # Pin the checked address while retaining hostname verification and TLS SNI.
@@ -67,7 +68,7 @@ def _request(url, address, limit, timeout):
         socket.create_connection((address, 443), timeout=timeout), server_hostname=parsed.hostname)
     try:
         connection.request('GET', parsed.path + ('?' + parsed.query if parsed.query else ''),
-                           headers={'User-Agent': USER_AGENT, 'Accept-Encoding': 'identity'})
+                           headers={'User-Agent': USER_AGENT, 'Accept-Encoding': 'identity', **(headers or {})})
         response = connection.getresponse()
         headers = dict((key.lower(), value) for key, value in response.getheaders())
         if int(headers.get('content-length', '0')) > limit:

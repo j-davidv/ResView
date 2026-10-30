@@ -5,6 +5,15 @@ from worker.providers import Providers, identifier, review_identifier
 
 
 class ProviderTests(unittest.TestCase):
+    def test_keyless_revalidation_only_reuses_identical_public_asset(self):
+        provider = Providers(Mock(), 'example.supabase.co')
+        provider.download = Mock(return_value=b'original')
+        provider._storage = Mock()
+        provider.upload('version/file.json', b'original')
+        with self.assertRaises(ValueError):
+            provider.upload('version/file.json', b'changed')
+        provider._storage.assert_not_called()
+
     def test_review_aliases_remain_one_pending_issue(self):
         record = {'title': 'Test Results', 'publicationUrl': 'https://www.prc.gov.ph/index.php/article/result',
                   'reason': 'Requires review.'}
