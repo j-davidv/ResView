@@ -194,7 +194,18 @@ class ExamShell extends StatelessWidget {
           ),
           bottomNavigationBar: wide
               ? null
-              : _buildNavigation(context, constraints.maxWidth),
+              : DecoratedBox(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.colorScheme.shadow.withValues(alpha: 0.12),
+                        blurRadius: 16,
+                        offset: const Offset(0, -3),
+                      ),
+                    ],
+                  ),
+                  child: _buildNavigation(context, constraints.maxWidth),
+                ),
         ),
       );
     },

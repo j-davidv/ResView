@@ -1,8 +1,4 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="1440" android:viewportHeight="1440">
-    <group android:translateX="84.5" android:translateY="60">
-        <path android:fillColor="#FFFFFF" android:fillType="evenOdd"
-            android:pathData="M 250 348 H 477 C 579 348 645 411 645 515 C 645 584 616 635 565 666 L 694 833 C 706 849 722 849 734 830 L 921 481 C 936 454 953 442 979 442 H 1037 C 1063 442 1070 459 1057 485 L 826 923 C 807 957 780 972 738 972 H 693 C 658 972 639 962 618 938 L 451 732 C 436 713 422 706 400 706 H 315 V 972 H 248 C 221 972 208 960 208 934 V 394 C 208 365 222 348 250 348 Z M 315 449 V 613 H 450 C 508 613 530 583 530 532 C 530 480 503 449 450 449 Z" />
-    </group>
-</vector>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="81dp" android:height="81dp" android:gravity="center"
+        android:drawable="@drawable/resview_launcher" />
+</layer-list>

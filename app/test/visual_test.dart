@@ -10,8 +10,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'flows_test.dart' show TestListStore;
 
+class _VisualTestBinding extends AutomatedTestWidgetsFlutterBinding {
+  @override
+  bool get disableShadows => false;
+}
+
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  _VisualTestBinding();
   setUpAll(() async {
     final font = File('assets/fonts/Inter-Variable.ttf');
     final loader = FontLoader('Inter')

@@ -13,7 +13,7 @@ class SelectedExam {
   final Sitting sitting;
   final String categoryId;
   ExamSelection get selection => ExamSelection(exam.id, sitting.id, categoryId);
-  String get details => categoryId == 'general'
+  String get details => sitting.categories.length <= 1
       ? sitting.label
       : '${sitting.label}\n${sitting.categories[categoryId] ?? categoryId}';
   String get description => '${exam.title}\n$details';
@@ -41,6 +41,10 @@ class _ExamSelectionState extends State<ExamSelectionScreen> {
   String? _category;
   DateTimeRange? _range;
   bool _busy = true, _failed = false;
+  String get _categoryLabel =>
+      _exam?.title.contains('Professional Teachers') == true
+      ? 'Teaching level'
+      : 'Category';
   @override
   void initState() {
     super.initState();
@@ -187,20 +191,21 @@ class _ExamSelectionState extends State<ExamSelectionScreen> {
             onPressed: () => setState(() => _range = null),
             child: const Text('Clear date filter'),
           ),
-        if (_sitting != null &&
-            !(_sitting!.categories.length == 1 &&
-                _sitting!.categories.containsKey('general'))) ...[
-          const Heading('Category'),
+        if (_sitting != null && _sitting!.categories.length > 1) ...[
+          Heading(_categoryLabel),
           OutlinedButton(
             onPressed: () async {
               final c = await _pick<String>(
-                'Choose category',
+                'Choose ${_categoryLabel.toLowerCase()}',
                 _sitting!.categories.keys.toList(),
                 (c) => _sitting!.categories[c]!,
               );
               if (c != null && mounted) setState(() => _category = c);
             },
-            child: Text(_sitting!.categories[_category] ?? 'Choose category'),
+            child: Text(
+              _sitting!.categories[_category] ??
+                  'Choose ${_categoryLabel.toLowerCase()}',
+            ),
           ),
         ],
         const SizedBox(height: 24),
