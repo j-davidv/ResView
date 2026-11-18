@@ -151,6 +151,19 @@ ThemeData appTheme(Brightness brightness) {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: controlStyle.copyWith(
+        foregroundBuilder: (context, states, child) {
+          final reduceMotion = MediaQuery.disableAnimationsOf(context);
+          return AnimatedScale(
+            scale: !reduceMotion && states.contains(WidgetState.pressed)
+                ? 0.98
+                : 1,
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 120),
+            curve: Curves.easeOut,
+            child: child,
+          );
+        },
         foregroundColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.disabled)
               ? secondary
@@ -213,11 +226,8 @@ ThemeData appTheme(Brightness brightness) {
 enum DesignGlyph {
   updates('article-outline'),
   results('assignment-outline'),
-  checkName('person-search-outline'),
   settings('settings-outline'),
   exam('school-outline'),
-  name('person-outline'),
-  offlineLists('folder-outline'),
   pushAlerts('notifications-outline'),
   email('mail-outline'),
   privacy('shield-outline'),
@@ -232,10 +242,8 @@ enum DesignGlyph {
   back('arrow-back', directional: true),
   externalLink('open-in-new'),
   copyLink('content-copy'),
-  saveOffline('download'),
   saveName('save-outline'),
   close('close'),
-  editName('edit-outline'),
   sitting('calendar-month-outline');
 
   const DesignGlyph(this.asset, {this.directional = false});

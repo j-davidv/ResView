@@ -8,28 +8,20 @@ import 'package:app/ui/results.dart';
 import 'package:app/ui/shared.dart';
 import 'package:app/storage/list_store.dart';
 import 'package:app/storage/private_store.dart';
-import 'package:app/ui/check_name.dart';
-
-class UnavailableListStore extends TestListStore {
-  @override
-  Future<CheckedList> prepare(
-    ResultVersion version, {
-    required CancelToken cancellation,
-    ValueChanged<double>? onProgress,
-  }) async => throw const ListFailure('TEST ONLY download unavailable');
-}
 
 class TestListStore extends ListStore {
+  bool cleared = false;
   @override
-  Future<void> cleanupTemporary() async {}
-  @override
-  Future<List<SavedList>> listSaved() async => [];
+  Future<void> clearAll() async {
+    cleared = true;
+  }
 }
 
 class TestRepository implements ExamRepository {
   TestRepository(this.state, {this.freshness = SourceFreshness.stale});
   final PublicationState state;
   final SourceFreshness freshness;
+  bool metadataUnavailable = false;
   @override
   Future<List<Exam>> loadCatalog() async => [
     const Exam('test-only', 'TEST ONLY — Long accented examination title Ñ'),
@@ -47,285 +39,150 @@ class TestRepository implements ExamRepository {
     ),
   ];
   @override
-  Future<List<Publication>> loadPublications(ExamSelection selection) async =>
-      [];
-  @override
-  Future<ResultVersion?> loadResultVersion(ExamSelection selection) async =>
-      ResultVersion(
-        selection: selection,
-        state: state,
-        freshness: freshness,
-        documentVersion: 'test-v1',
-        lastSuccessfulCheckUtc: DateTime.utc(2026, 10, 14),
-        publicationUrl: Uri.parse('https://www.prc.gov.ph/test-only'),
-      );
-}
-
-class RecoveryRepository extends TestRepository {
-  RecoveryRepository() : super(PublicationState.checkingAvailable);
-  PublicationState resultState = PublicationState.checkingAvailable;
-  bool offline = false;
-  @override
-  Future<ResultVersion?> loadResultVersion(ExamSelection selection) async {
-    if (offline) throw const ServiceUnavailable();
-    return ResultVersion(
-      selection: selection,
-      state: resultState,
-      freshness: SourceFreshness.fresh,
-      documentVersion: 'test-v1',
-      namesBytes: 100,
-    );
-  }
-}
-
-class RecoveryListStore extends TestListStore {
-  final revoked = <String>[];
-  @override
-  Future<List<SavedList>> listSaved() async => [
-    const SavedList(
-      ResultVersion(
-        selection: ExamSelection('test-only', 'test-sitting', 'general'),
-        state: PublicationState.checkingAvailable,
-        documentVersion: 'test-v1',
-      ),
-      100,
-      false,
+  Future<List<Publication>> loadPublications(ExamSelection selection) async => [
+    Publication(
+      id: 'test-only',
+      title: 'TEST ONLY official result',
+      url: Uri.parse('https://www.prc.gov.ph/article/test-only'),
+      publishedAtUtc: DateTime.utc(2026, 10, 16),
+      documents: {
+        Uri.parse('https://drive.google.com/file/d/TESTONLY123/view'):
+            'successful-examinee list',
+      },
     ),
   ];
   @override
-  Future<void> markSuperseded(
-    String oldVersionId,
-    String currentVersionId,
-  ) async {
-    revoked.add(oldVersionId);
+  Future<ResultVersion?> loadResultVersion(ExamSelection selection) async {
+    if (metadataUnavailable) throw const ServiceUnavailable();
+    return ResultVersion(
+      selection: selection,
+      state: state,
+      freshness: freshness,
+      documentVersion: 'test-v1',
+      lastSuccessfulCheckUtc: DateTime.utc(2026, 10, 14),
+      publicationUrl: Uri.parse('https://www.prc.gov.ph/article/test-only'),
+      reason: 'This document format has not passed validation.',
+    );
   }
 }
 
 void main() {
   setUp(() => FlutterSecureStorage.setMockInitialValues({'introSeen': 'true'}));
-  testWidgets(
-    'same-version revocation blocks saved reuse and resets active checking',
-    (tester) async {
-      await PrivateStore().saveSelection(
-        const ExamSelection('test-only', 'test-sitting', 'general'),
-      );
-      final repository = RecoveryRepository();
-      final lists = RecoveryListStore();
-      await tester.pumpWidget(
-        ExamApp(repository: repository, listStore: lists),
-      );
-      await tester.pumpAndSettle();
-      final refresh = tester
-          .widget<IconButton>(
-            find.byWidgetPredicate(
-              (widget) =>
-                  widget is IconButton &&
-                  widget.tooltip == 'Refresh available metadata',
-            ),
-          )
-          .onPressed!;
-      await tester.tap(find.text('Check name').last);
-      await tester.pumpAndSettle();
-      final oldKey = tester
-          .widget<CheckNameScreen>(find.byType(CheckNameScreen))
-          .key;
-      repository.resultState = PublicationState.checkingUnavailable;
-      refresh();
-      await tester.pumpAndSettle();
-      expect(lists.revoked, ['test-only/test-sitting/general/test-v1']);
-      expect(
-        tester.widget<CheckNameScreen>(find.byType(CheckNameScreen)).key,
-        isNot(oldKey),
-      );
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Check name'),
-            )
-            .onPressed,
-        isNull,
-      );
-      expect(find.text('Automatic name checking unavailable.'), findsOneWidget);
-    },
-  );
-  testWidgets(
-    'metadata outage retains last-good checking with a stale warning',
-    (tester) async {
-      await PrivateStore().saveSelection(
-        const ExamSelection('test-only', 'test-sitting', 'general'),
-      );
-      final repository = RecoveryRepository();
-      final lists = RecoveryListStore();
-      await tester.pumpWidget(
-        ExamApp(repository: repository, listStore: lists),
-      );
-      await tester.pumpAndSettle();
-      repository.offline = true;
-      await tester.tap(find.byTooltip('Refresh available metadata'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Results').last);
-      await tester.pumpAndSettle();
-      expect(find.text('Source information may be outdated'), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Check name'), findsOneWidget);
-      expect(lists.revoked, isEmpty);
-    },
-  );
-  testWidgets('checking failure is brought into view at double text', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: MediaQuery(
-          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
-          child: Scaffold(
-            body: SingleChildScrollView(
-              child: CheckNameScreen(
-                version: const ResultVersion(
-                  selection: ExamSelection('test', 'test', 'general'),
-                  state: PublicationState.checkingAvailable,
-                  documentVersion: 'test',
-                  freshness: SourceFreshness.fresh,
-                  namesBytes: 100,
-                ),
-                store: PrivateStore(),
-                lists: UnavailableListStore(),
-                hasSelection: true,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField).at(0), 'TEST ONLY Peña');
-    await tester.enterText(find.byType(TextFormField).at(1), 'TEST ONLY Given');
-    final check = find.widgetWithText(FilledButton, 'Check name');
-    await tester.ensureVisible(check);
-    await tester.tap(check);
-    await tester.pumpAndSettle();
-    expect(
-      find.text('TEST ONLY download unavailable').hitTestable(),
-      findsOneWidget,
-    );
-    expect(tester.takeException(), isNull);
-  });
-  testWidgets('unsaved draft survives tabs without disk retention', (
-    tester,
-  ) async {
-    await tester.pumpWidget(ExamApp(listStore: TestListStore()));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Check name').last);
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField).first, 'TEST ONLY Peña');
-    await tester.tap(find.text('Results').last);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Check name').last);
-    await tester.pumpAndSettle();
-    expect(
-      tester
-          .widget<TextFormField>(find.byType(TextFormField).first)
-          .controller!
-          .text,
-      'TEST ONLY Peña',
-    );
-    expect(await const FlutterSecureStorage().read(key: 'name'), isNull);
-  });
-  testWidgets('missing selection leads with recovery before name fields', (
-    tester,
-  ) async {
-    await tester.pumpWidget(ExamApp(listStore: TestListStore()));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Check name').last);
-    await tester.pumpAndSettle();
-    expect(find.text('Choose an exam first'), findsOneWidget);
-    expect(
-      tester.getTopLeft(find.text('Choose an exam first')).dy,
-      lessThan(tester.getTopLeft(find.byType(TextFormField).first).dy),
-    );
-    await tester.tap(find.widgetWithText(FilledButton, 'Choose exam'));
-    await tester.pumpAndSettle();
-    expect(find.text('Exam selection'), findsOneWidget);
-  });
+  const selection = ExamSelection('test-only', 'test-sitting', 'general');
+
   for (final state in PublicationState.values) {
     testWidgets(
-      'publication ${state.name} remains distinct from stale freshness',
+      'publication status and sources survive legacy state ${state.name}',
       (tester) async {
-        final result = await TestRepository(state).loadResultVersion(
-          const ExamSelection('test-only', 'test-sitting', 'general'),
+        final version = ResultVersion(
+          selection: selection,
+          state: state,
+          documentVersion: 'test-v1',
+          freshness: SourceFreshness.stale,
+          publicationUrl: Uri.parse('https://www.prc.gov.ph/article/test-only'),
+          reason: 'This document format has not passed validation.',
         );
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
               body: SingleChildScrollView(
-                child: ResultsScreen(version: result, onCheck: () {}),
+                child: ResultsScreen(version: version),
               ),
             ),
           ),
         );
-        await tester.pumpAndSettle();
         expect(find.text(publicationLabel(state)), findsOneWidget);
         expect(find.text('Source information may be outdated'), findsOneWidget);
-        expect(find.textContaining('UTC+08:00'), findsWidgets);
-        expect(
-          tester
-              .widget<OutlinedButton>(
-                find.widgetWithText(OutlinedButton, 'Open PRC publication'),
-              )
-              .onPressed,
-          isNotNull,
-        );
-        if (state == PublicationState.checkingAvailable) {
-          expect(find.text('Check name'), findsOneWidget);
-        } else {
-          expect(find.widgetWithText(FilledButton, 'Check name'), findsNothing);
-        }
+        expect(find.text('Open PRC publication'), findsOneWidget);
+        expect(find.textContaining('Document version'), findsNothing);
+        expect(find.textContaining('validation'), findsNothing);
+        expect(find.text('Check name'), findsNothing);
       },
     );
   }
+
   testWidgets(
-    'selection keeps overseas identity and browsing does not request a name',
+    'upgrade clears legacy checker data and preserves the selection',
     (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      const storage = FlutterSecureStorage();
+      await storage.write(key: 'name', value: '{"surname":"TEST ONLY"}');
+      await PrivateStore().saveSelection(selection);
+      final lists = TestListStore();
       await tester.pumpWidget(
         ExamApp(
-          repository: TestRepository(PublicationState.validationPending),
-          listStore: TestListStore(),
+          repository: TestRepository(PublicationState.checkingUnavailable),
+          listStore: lists,
         ),
       );
       await tester.pumpAndSettle();
-      final choose = find.widgetWithText(OutlinedButton, 'Choose exam');
-      await tester.ensureVisible(choose);
-      await tester.tap(choose);
+      expect(lists.cleared, isTrue);
+      expect(await storage.read(key: 'name'), isNull);
+      expect(await PrivateStore().readSelection(), selection);
+      expect(find.byType(NavigationDestination), findsNWidgets(3));
+      expect(find.text('Check name'), findsNothing);
+      await tester.tap(find.text('Results').last);
       await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('TEST ONLY — Long'));
+      expect(find.text('Results released'), findsOneWidget);
+      expect(find.text('Open successful-examinee list'), findsOneWidget);
+      await tester.tap(find.text('Settings').last);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Choose sitting'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Overseas'));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('View updates'));
-      await tester.tap(find.text('View updates'));
-      await tester.pumpAndSettle();
-      expect(
-        find.text('No announcements found for this selection'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('Overseas'), findsWidgets);
-      await tester.tap(find.text('Check name').last);
-      await tester.pumpAndSettle();
-      expect(find.text('Surname'), findsOneWidget);
-      expect(find.text('Save when I check'), findsOneWidget);
-      expect(
-        tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
-        isFalse,
-      );
+      expect(find.text('Saved name'), findsNothing);
+      expect(find.text('Offline lists'), findsNothing);
+      expect(find.text('Push alerts'), findsOneWidget);
+      expect(find.text('Email updates'), findsOneWidget);
     },
   );
+
+  testWidgets('announcement links survive a result metadata outage', (
+    tester,
+  ) async {
+    await PrivateStore().saveSelection(selection);
+    final repository = TestRepository(PublicationState.checkingUnavailable)
+      ..metadataUnavailable = true;
+    await tester.pumpWidget(
+      ExamApp(repository: repository, listStore: TestListStore()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Results').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Open successful-examinee list'), findsOneWidget);
+    expect(find.text('Results released'), findsOneWidget);
+  });
+
+  testWidgets('selection retains overseas sitting and loads official links', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ExamApp(
+        repository: TestRepository(PublicationState.validationPending),
+        listStore: TestListStore(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final choose = find.widgetWithText(OutlinedButton, 'Choose exam');
+    await tester.ensureVisible(choose);
+    await tester.tap(choose);
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('TEST ONLY — Long'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Choose sitting'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Overseas'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('View updates'));
+    await tester.tap(find.text('View updates'));
+    await tester.pumpAndSettle();
+    expect(find.text('TEST ONLY official result'), findsOneWidget);
+    expect(find.textContaining('Overseas'), findsWidgets);
+    expect(find.text('Open successful-examinee list'), findsOneWidget);
+  });
+
   testWidgets(
-    'settings privacy controls pass touch target and label guidelines',
+    'settings keeps consent, email, and privacy controls accessible',
     (tester) async {
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(ExamApp(listStore: TestListStore()));
@@ -335,22 +192,19 @@ void main() {
       await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
       await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
       semantics.dispose();
-    },
-  );
-  testWidgets(
-    'retry after server deletion failure does not claim a local refresh completed it',
-    (tester) async {
-      await tester.pumpWidget(ExamApp(listStore: TestListStore()));
+      await tester.ensureVisible(find.text('Email updates'));
+      await tester.tap(find.text('Email updates'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Settings').last);
+      expect(find.text('Email signup unavailable'), findsOneWidget);
+      await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
-      final deletion = find.text('Delete server-side push preferences');
-      final privacy = find.text('Privacy and data');
-      await tester.ensureVisible(privacy);
-      await tester.tap(privacy);
+      await tester.ensureVisible(find.text('Privacy and data'));
+      await tester.tap(find.text('Privacy and data'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(deletion);
-      await tester.tap(deletion);
+      await tester.ensureVisible(
+        find.text('Delete server-side push preferences'),
+      );
+      await tester.tap(find.text('Delete server-side push preferences'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete').last);
       await tester.pumpAndSettle();
@@ -358,7 +212,6 @@ void main() {
       await tester.ensureVisible(retry);
       await tester.tap(retry);
       await tester.pumpAndSettle();
-      expect(find.text('Device data refreshed.'), findsNothing);
       expect(
         find.text(
           'Server deletion pending. Alerts may continue until confirmed.',

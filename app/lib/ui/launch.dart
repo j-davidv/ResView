@@ -135,9 +135,9 @@ class WelcomeScreen extends StatelessWidget {
         'Read announcements and publication status in Updates and Results. Open the linked PRC source for details.',
       ),
       (
-        DesignGlyph.checkName,
-        '3. Check a name privately',
-        'Name entry is optional. Checking needs a validated list and runs on your device. A matching name does not prove identity.',
+        DesignGlyph.externalLink,
+        '3. Read the official list',
+        'Open the successful-examinee list from PRC. Use Find text in document to search supported Google Drive lists.',
       ),
     ];
     return AnnotatedRegion<SystemUiOverlayStyle>(

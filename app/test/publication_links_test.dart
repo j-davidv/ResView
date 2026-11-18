@@ -30,13 +30,9 @@ void main() {
     (tester) async {
       await screen(
         tester,
-        ResultsScreen(
-          version: null,
-          publications: [publication()],
-          onCheck: () {},
-        ),
+        ResultsScreen(version: null, publications: [publication()]),
       );
-      expect(find.text('Checking status unavailable'), findsOneWidget);
+      expect(find.text('Results released'), findsOneWidget);
       expect(find.text('Open successful-examinee list'), findsOneWidget);
       expect(find.text('Open PRC publication'), findsOneWidget);
     },
@@ -203,12 +199,11 @@ void main() {
             ),
           ),
           publications: [publication()],
-          onCheck: () {},
         ),
       );
       expect(find.text('Open successful-examinee list'), findsOneWidget);
       expect(find.text('Open PRC publication'), findsOneWidget);
-      expect(find.text('Checking unavailable'), findsOneWidget);
+      expect(find.text('Results released'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Check name'), findsNothing);
       expect(
         tester
@@ -241,7 +236,6 @@ void main() {
             url: Uri.parse('https://www.prc.gov.ph/article/different-release'),
           ),
         ],
-        onCheck: () {},
       ),
     );
     expect(find.text('Open successful-examinee list'), findsNothing);
