@@ -17,6 +17,8 @@ Configure equivalent environment variables in Android Studio's run configuration
 
 ## Runtime configuration
 
+For a build that can browse public announcements and check available lists without Firebase SDK configuration, add `--dart-define=FIRESTORE_PUBLIC_PROJECT_ID=resview-9240c` to Flutter's build or run arguments. The app reads Firestore metadata under the existing public rules and downloads validated lists from their Supabase Storage URLs. Push registration still requires the Firebase SDK configuration below.
+
 Without Firebase configuration the normal app reports the catalog, checking, and email integration as unavailable; it does not substitute sample content. Supply reviewed non-secret Firebase client identifiers through Android Studio's Additional run args using `--dart-define` for `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, and `FIREBASE_SENDER_ID`. Never put worker/admin or Brevo service credentials in the mobile app. Before configuring real services, verify Spark/no billing, deploy tested owner-only preference rules and worker-only public writes, and establish the permitted PRC source route.
 
 Optional reviewed HTTPS public links use `BREVO_SIGNUP_URL`, `PRIVACY_POLICY_URL`, and `MAINTAINER_CONTACT_URL`. Empty links are not rendered as working controls. Email signup is independent of anonymous installation identity. Opening its form does not establish confirmation. FCM auto-init and analytics collection are disabled by default; notification registration requires contextual consent.

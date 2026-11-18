@@ -1,7 +1,9 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'alerts/push_preferences.dart';
 import 'data/exam_repository.dart';
@@ -10,11 +12,16 @@ import 'domain/models.dart';
 import 'storage/private_store.dart';
 import 'storage/list_store.dart';
 import 'ui/check_name.dart';
+import 'ui/design.dart';
 import 'ui/exam_selection.dart';
+import 'ui/launch.dart';
 import 'ui/results.dart';
 import 'ui/settings.dart';
 import 'ui/shared.dart';
+import 'ui/shell.dart';
 import 'ui/updates.dart';
+
+export 'ui/design.dart' show appTheme;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,47 +42,6 @@ Future<void> main() async {
   runApp(const ExamApp());
 }
 
-ThemeData appTheme(Brightness brightness) {
-  final scheme = ColorScheme.fromSeed(
-    seedColor: const Color(0xff185f59),
-    brightness: brightness,
-  );
-  final base = ThemeData(
-    useMaterial3: true,
-    colorScheme: scheme,
-    brightness: brightness,
-  );
-  return base.copyWith(
-    textTheme: base.textTheme.copyWith(
-      titleMedium: base.textTheme.titleMedium!.copyWith(fontSize: 18),
-      bodyMedium: base.textTheme.bodyMedium!.copyWith(fontSize: 16),
-      bodySmall: base.textTheme.bodySmall!.copyWith(fontSize: 14),
-    ),
-    inputDecorationTheme: const InputDecorationTheme(
-      border: OutlineInputBorder(),
-    ),
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(48, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      ),
-    ),
-    outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(48, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      ),
-    ),
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        minimumSize: const Size(48, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      ),
-    ),
-    materialTapTargetSize: MaterialTapTargetSize.padded,
-  );
-}
-
 class ExamApp extends StatelessWidget {
   const ExamApp({this.repository, this.listStore, super.key});
   final ExamRepository? repository;
@@ -89,11 +55,7 @@ class ExamApp extends StatelessWidget {
     themeMode: ThemeMode.system,
     home: _ExamHome(
       lists: listStore,
-      repository:
-          repository ??
-          FirestoreExamRepository(
-            Firebase.apps.isEmpty ? null : FirebaseFirestore.instance,
-          ),
+      repository: repository ?? FirestoreExamRepository.fromEnvironment(),
     ),
   );
 }
@@ -107,13 +69,6 @@ class _ExamHome extends StatefulWidget {
 }
 
 class _ExamHomeState extends State<_ExamHome> {
-  static const _titles = ['Updates', 'Results', 'Check name', 'Settings'];
-  static const _icons = [
-    Icons.article_outlined,
-    Icons.fact_check_outlined,
-    Icons.person_search_outlined,
-    Icons.settings_outlined,
-  ];
   final _store = PrivateStore();
   late final _lists = widget.lists ?? ListStore();
   late final _push = PushPreferences(store: _store);
@@ -125,54 +80,170 @@ class _ExamHomeState extends State<_ExamHome> {
   List<Publication> _publications = [];
   bool _loading = false, _failed = false;
   String? _localError;
+  bool _readingLaunch = true, _showLaunchProgress = false;
+  bool _showWelcome = false, _savingIntro = false, _launchReadFailed = false;
+  bool _restoringSelection = false, _restoringPush = true;
+  ExamSelection? _selectionToRetry;
+  String? _introError;
+  Timer? _launchProgress;
   @override
   void initState() {
     super.initState();
-    _restore();
+    _restoreLaunch();
+    _restorePush();
   }
 
-  Future<void> _restore() async {
+  Future<void> _restoreLaunch() async {
+    _launchProgress = Timer(const Duration(milliseconds: 400), () {
+      if (mounted && _readingLaunch) {
+        setState(() => _showLaunchProgress = true);
+      }
+    });
+    try {
+      final introSeen = await _store.readIntroSeen();
+      final selection = introSeen ? await _store.readSelection() : null;
+      await _cleanupLists();
+      if (!mounted) return;
+      setState(() {
+        _showWelcome = !introSeen;
+        _launchReadFailed = false;
+        _readingLaunch = false;
+      });
+      if (selection != null) unawaited(_restoreSelection(selection));
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _launchReadFailed = true;
+          _readingLaunch = false;
+        });
+      }
+    } finally {
+      _launchProgress?.cancel();
+    }
+  }
+
+  Future<void> _finishIntro({required bool chooseExam}) async {
+    if (_savingIntro) return;
+    setState(() {
+      _savingIntro = true;
+      _introError = null;
+    });
+    try {
+      await _store.markIntroSeen();
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _savingIntro = false;
+          _introError = 'The introduction could not be saved. Try again.';
+        });
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _savingIntro = false;
+      _showWelcome = false;
+    });
+    final selection = await _readExistingSelection();
+    if (!mounted) return;
+    // Completing onboarding must also retain the exact selection from an
+    // earlier installation of the app.
+    if (selection != null) unawaited(_restoreSelection(selection));
+    if (chooseExam) await _change();
+  }
+
+  Future<ExamSelection?> _readExistingSelection() async {
+    try {
+      return await _store.readSelection();
+    } catch (_) {
+      if (mounted) setState(() => _launchReadFailed = true);
+      return null;
+    }
+  }
+
+  Future<void> _retryLaunch() async {
+    setState(() {
+      _readingLaunch = true;
+      _showLaunchProgress = false;
+    });
+    await _restoreLaunch();
+  }
+
+  Future<void> _cleanupLists() async {
     try {
       await _lists.cleanupTemporary();
-      await _push.restore();
-      final selection = await _store.readSelection();
-      if (selection == null) return;
-      final exams = await widget.repository.loadCatalog();
-      final sittings = await widget.repository.loadSittings(selection.examId);
-      final exam = exams.where((e) => e.id == selection.examId).firstOrNull;
-      final sitting = sittings
-          .where((s) => s.id == selection.sittingId)
-          .firstOrNull;
-      if (exam != null &&
-          sitting != null &&
-          sitting.categories.containsKey(selection.categoryId) &&
-          mounted) {
-        setState(
-          () => _selected = SelectedExam(exam, sitting, selection.categoryId),
-        );
-        await _refresh();
-      }
     } catch (_) {
       if (mounted) {
         setState(
-          () => _localError = 'Some saved preferences could not be restored. Your data has not been deleted.',
+          () => _localError = 'Temporary lists could not be cleaned up.',
         );
+      }
+    }
+  }
+
+  Future<void> _restorePush() async {
+    try {
+      await _push.restore();
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _localError = 'Saved alert preferences could not be restored.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _restoringPush = false);
+    }
+  }
+
+  Future<void> _restoreSelection(ExamSelection selection) async {
+    final generation = ++_generation;
+    setState(() {
+      _restoringSelection = true;
+      _selectionToRetry = null;
+    });
+    try {
+      final exams = await widget.repository.loadCatalog();
+      final exam = exams.where((e) => e.id == selection.examId).firstOrNull;
+      if (exam == null || !mounted || generation != _generation) return;
+      final sittings = await widget.repository.loadSittings(selection.examId);
+      if (!mounted || generation != _generation) return;
+      final sitting = sittings
+          .where(
+            (s) => s.id == selection.sittingId && s.examId == selection.examId,
+          )
+          .firstOrNull;
+      if (sitting != null &&
+          sitting.categories.containsKey(selection.categoryId)) {
+        _selected = SelectedExam(exam, sitting, selection.categoryId);
+      }
+    } catch (_) {
+      if (mounted && generation == _generation) _selectionToRetry = selection;
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _restoringSelection = false);
+        if (_selected != null) unawaited(_refresh());
       }
     }
   }
 
   @override
   void dispose() {
+    _launchProgress?.cancel();
     _push.dispose();
     super.dispose();
   }
 
   Future<void> _select(SelectedExam selected) async {
+    final generation = ++_generation;
     setState(() {
       _selected = selected;
       _savedDescription = null;
       _version = null;
       _publications = [];
+      _restoringSelection = false;
+      _selectionToRetry = null;
+      _loading = true;
+      _failed = false;
     });
     try {
       await _store.saveSelection(selected.selection);
@@ -184,7 +255,7 @@ class _ExamHomeState extends State<_ExamHome> {
         );
       }
     }
-    await _refresh();
+    if (mounted && generation == _generation) await _refresh();
   }
 
   Future<void> _refresh() async {
@@ -250,14 +321,26 @@ class _ExamHomeState extends State<_ExamHome> {
       context,
       MaterialPageRoute(
         builder: (context) => Scaffold(
-          appBar: AppBar(title: const Text('Exam selection')),
+          appBar: AppBar(
+            leading: const DesignBackButton(),
+            toolbarHeight: math.max(
+              56,
+              MediaQuery.textScalerOf(context).scale(28) + 16,
+            ),
+            title: const Text('Exam selection'),
+          ),
           body: SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: ExamSelectionScreen(
-                repository: widget.repository,
-                current: _selected,
-                onSelected: (selected) => Navigator.pop(context, selected),
+              padding: const EdgeInsets.all(screenGutter),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: maxContentWidth),
+                  child: ExamSelectionScreen(
+                    repository: widget.repository,
+                    current: _selected,
+                    onSelected: (selected) => Navigator.pop(context, selected),
+                  ),
+                ),
               ),
             ),
           ),
@@ -274,20 +357,34 @@ class _ExamHomeState extends State<_ExamHome> {
         lists: _lists,
         push: _push,
         selection: _selected?.selection,
+        examTitle: _selected?.exam.title,
+        examDetails: _selected?.details,
+        restoringPush: _restoringPush,
         onChange: _change,
         onEditName: () => setState(() => _destination = 2),
         onNameDeleted: () => _nameDraft = null,
         onLocalDeleted: () => setState(() {
           _nameDraft = null;
           _selected = null;
+          _savedDescription = null;
           _version = null;
           _publications = [];
           _generation++;
+          _restoringSelection = false;
+          _selectionToRetry = null;
+          _loading = false;
+          _failed = false;
         }),
         onUseSaved: (saved) => setState(() {
+          _generation++;
           _selected = null;
           _savedDescription = saved.contextDescription;
           _version = saved.version;
+          _publications = [];
+          _restoringSelection = false;
+          _selectionToRetry = null;
+          _loading = false;
+          _failed = false;
           _destination = 2;
         }),
       );
@@ -305,14 +402,45 @@ class _ExamHomeState extends State<_ExamHome> {
         initialDraft: _nameDraft,
         onDraftChanged: (name) => _nameDraft = name,
         hasSelection: _selected != null || _version != null,
-        onChooseExam: _change,
         onViewResults: () => setState(() => _destination = 1),
       );
     }
+    if (_destination == 1) {
+      return ResultsScreen(
+        version: _version,
+        publications: _publications,
+        loading: _loading || _restoringSelection,
+        onCheck: () => setState(() => _destination = 2),
+        onChooseExam: _selected == null && _version == null ? _change : null,
+        onRetry: _failed && _publications.isEmpty ? _refresh : null,
+      );
+    }
+    if (_restoringSelection) {
+      return const Notice(
+        'Loading official information',
+        'Restoring your exam selection.',
+        action: LinearProgressIndicator(
+          semanticsLabel: 'Restoring your exam selection',
+        ),
+      );
+    }
     if (_selected == null) {
-      return ExamSelectionScreen(
-        repository: widget.repository,
-        onSelected: _select,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ExamSelectionScreen(
+            repository: widget.repository,
+            onSelected: _select,
+          ),
+          const SizedBox(height: 12),
+          const Notice(
+            'Your name stays on this device.',
+            'You can browse without entering a name.',
+            glyph: DesignGlyph.privacy,
+            highlighted: true,
+            announce: false,
+          ),
+        ],
       );
     }
     if (_loading && _version == null && _publications.isEmpty) {
@@ -328,127 +456,74 @@ class _ExamHomeState extends State<_ExamHome> {
       return Notice(
         'Official information unavailable',
         'The service could not be reached. This does not establish whether results have been released.',
+        glyph: DesignGlyph.unreachable,
         action: OutlinedButton(onPressed: _refresh, child: const Text('Retry')),
       );
     }
-    return _destination == 0
-        ? UpdatesScreen(publications: _publications, version: _version)
-        : ResultsScreen(
-            version: _version,
-            publications: _publications,
-            onCheck: () => setState(() => _destination = 2),
-          );
+    return UpdatesScreen(publications: _publications, version: _version);
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final wide = constraints.maxWidth >= 600 && constraints.maxHeight >= 500;
-      final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
-      final content = SingleChildScrollView(
-        key: ValueKey(_destination),
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_selected != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _selected!.description,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    TextButton(onPressed: _change, child: const Text('Change')),
-                  ],
-                ),
-              ),
-            if (_selected == null && _version != null)
-              Notice(
-                'Saved offline list',
-                '${_savedDescription ?? 'Saved exam context unavailable. Confirm the sitting in the official publication.'}\nThis device cannot know about corrections published while offline.',
-                warning: true,
-              ),
-            if (_localError != null && _destination == 3)
-              Notice('Device preferences', _localError!),
-            if (_failed && (_version != null || _publications.isNotEmpty))
-              const Notice(
-                'Refresh unavailable',
-                'Showing previously retrieved information.',
-                warning: true,
-              ),
-            if (_loading && _version != null) const LinearProgressIndicator(),
-            _content(),
-          ],
-        ),
+  Widget build(BuildContext context) {
+    if (_readingLaunch) return LaunchScreen(showProgress: _showLaunchProgress);
+    if (_showWelcome) {
+      return WelcomeScreen(
+        onChoose: () => _finishIntro(chooseExam: true),
+        onSkip: () => _finishIntro(chooseExam: false),
+        busy: _savingIntro,
+        error: _introError,
       );
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(_titles[_destination]),
-          actions: [
-            if (_selected != null && _destination < 2)
-              IconButton(
-                tooltip: 'Refresh available metadata',
-                onPressed: _loading ? null : _refresh,
-                icon: const Icon(Icons.refresh),
+    }
+    return ExamShell(
+      destination: _destination,
+      onNavigate: (index) => setState(() => _destination = index),
+      examTitle: _selected?.exam.title,
+      examDetails: _selected?.details,
+      restoringSelection: _restoringSelection,
+      onChoose: _change,
+      canRefresh: _selected != null && _destination < 2,
+      onRefresh: _loading ? null : _refresh,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_launchReadFailed)
+            Notice(
+              'Device preferences',
+              'Saved preferences could not be restored.',
+              warning: true,
+              action: OutlinedButton(
+                onPressed: _retryLaunch,
+                child: const Text('Retry'),
               ),
-          ],
-        ),
-        body: SafeArea(
-          child: Row(
-            children: [
-              if (wide)
-                NavigationRail(
-                  labelType: NavigationRailLabelType.all,
-                  selectedIndex: _destination,
-                  onDestinationSelected: (index) =>
-                      setState(() => _destination = index),
-                  destinations: [
-                    for (var i = 0; i < 4; i++)
-                      NavigationRailDestination(
-                        icon: Icon(_icons[i]),
-                        label: Text(_titles[i]),
-                      ),
-                  ],
-                ),
-              Expanded(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: content,
-                  ),
-                ),
+            ),
+          if (_selectionToRetry case final selection?)
+            Notice(
+              'Saved exam selection unavailable',
+              'The official catalog could not be reached to restore your saved selection.',
+              glyph: DesignGlyph.unreachable,
+              action: OutlinedButton(
+                onPressed: () => _restoreSelection(selection),
+                child: const Text('Retry'),
               ),
-            ],
-          ),
-        ),
-        bottomNavigationBar: wide
-            ? null
-            : NavigationBarTheme(
-                data: NavigationBarThemeData(
-                  labelTextStyle: WidgetStatePropertyAll(
-                    Theme.of(context).textTheme.labelMedium!
-                        .copyWith(fontSize: 12 * scale / scale.clamp(1, 1.3)),
-                  ),
-                ),
-                child: NavigationBar(
-                  height: scale > 1.4 ? 116 : 80,
-                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                  selectedIndex: _destination,
-                  onDestinationSelected: (index) =>
-                      setState(() => _destination = index),
-                  destinations: [
-                    for (var i = 0; i < 4; i++)
-                      NavigationDestination(
-                        icon: Icon(_icons[i]),
-                        label: _titles[i],
-                      ),
-                  ],
-                ),
-              ),
-      );
-    },
-  );
+            ),
+          if (_selected == null && _version != null)
+            Notice(
+              'Saved offline list',
+              '${_savedDescription ?? 'Saved exam context unavailable. Confirm the sitting in the official publication.'}\nThis device cannot know about corrections published while offline.',
+              warning: true,
+            ),
+          if (_localError != null && _destination == 3)
+            Notice('Device preferences', _localError!),
+          if (_failed && (_version != null || _publications.isNotEmpty))
+            const Notice(
+              'Refresh unavailable',
+              'Showing previously retrieved information.',
+              warning: true,
+            ),
+          if (_loading && _version != null) const LinearProgressIndicator(),
+          KeyedSubtree(key: ValueKey(_destination), child: _content()),
+        ],
+      ),
+    );
+  }
 }

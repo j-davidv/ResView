@@ -8,6 +8,12 @@ class PrivateStore {
   PrivateStore({FlutterSecureStorage? storage})
     : _storage = storage ?? const FlutterSecureStorage();
   final FlutterSecureStorage _storage;
+  Future<bool> readIntroSeen() async =>
+      await _storage.read(key: 'introSeen') == 'true';
+  Future<void> markIntroSeen() =>
+      _storage.write(key: 'introSeen', value: 'true');
+  Future<void> resetIntroSeen() => _storage.delete(key: 'introSeen');
+
   Future<NameInput?> readName() async {
     final value = await _storage.read(key: 'name');
     return value == null

@@ -10,6 +10,7 @@ import 'package:app/main.dart';
 import 'package:app/domain/models.dart';
 import 'package:app/domain/matching_worker.dart';
 import 'package:app/storage/list_store.dart';
+import 'package:app/storage/private_store.dart';
 import 'package:app/ui/results.dart';
 import 'package:app/ui/shared.dart';
 
@@ -153,6 +154,13 @@ void main() {
     (tester) async {
       await tester.pumpWidget(const ExamApp());
       await tester.pumpAndSettle();
+      final skip = find.text('Skip introduction');
+      if (skip.evaluate().isNotEmpty) {
+        addTearDown(PrivateStore().resetIntroSeen);
+        await tester.ensureVisible(skip);
+        await tester.tap(skip);
+        await tester.pumpAndSettle();
+      }
       expect(find.text('Exam catalog unavailable'), findsOneWidget);
       expect(find.textContaining('Demo data'), findsNothing);
       await tester.tap(find.text('Check name').last);
@@ -184,6 +192,10 @@ void main() {
       await tester.tap(find.text('Settings').last);
       await tester.pumpAndSettle();
       expect(find.text('Privacy and data'), findsOneWidget);
+      final email = find.text('Email updates');
+      await tester.ensureVisible(email);
+      await tester.tap(email);
+      await tester.pumpAndSettle();
       expect(find.text('Email signup unavailable'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../domain/models.dart';
+import 'design.dart';
 import 'shared.dart';
 
 class UpdatesScreen extends StatelessWidget {
@@ -13,7 +14,7 @@ class UpdatesScreen extends StatelessWidget {
   final ResultVersion? version;
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       if (version != null) FreshnessSection(version!),
       if (publications.isEmpty)
@@ -22,15 +23,34 @@ class UpdatesScreen extends StatelessWidget {
           'Try another sitting or refresh the available announcements.',
         ),
       for (final p in publications) ...[
-        const Divider(height: 24),
-        Text(p.title, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Text(
-          '${p.type}\nPublished: ${sourceTime(p.publishedAtUtc)}',
-          style: Theme.of(context).textTheme.bodySmall,
+        const SizedBox(height: 16),
+        DesignCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const DesignIcon(DesignGlyph.updates),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      p.title,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Metadata('${p.type}\nPublished: ${sourceTime(p.publishedAtUtc)}'),
+              const SizedBox(height: 12),
+              OfficialSourceLinks(
+                publicationUrl: p.url,
+                documents: p.documents,
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
-        OfficialSourceLinks(publicationUrl: p.url, documents: p.documents),
       ],
     ],
   );

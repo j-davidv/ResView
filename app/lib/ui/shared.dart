@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../domain/models.dart';
+import 'design.dart';
 import 'source_viewer.dart';
 
 const privacyDisclosure = '''Your name stays on this device and is used here to check a validated PRC list. We do not send your entered name or personal matching result to our servers. Public result lists may contain names already published by PRC.
@@ -25,13 +26,14 @@ String publicationLabel(PublicationState state) => switch (state) {
 };
 
 class Heading extends StatelessWidget {
-  const Heading(this.text, {super.key});
+  const Heading(this.text, {this.top = 24, super.key});
   final String text;
+  final double top;
   @override
   Widget build(BuildContext context) => Semantics(
     header: true,
     child: Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 8),
+      padding: EdgeInsets.only(top: top, bottom: 8),
       child: Text(text, style: Theme.of(context).textTheme.titleMedium),
     ),
   );
@@ -43,33 +45,91 @@ class Notice extends StatelessWidget {
     this.message, {
     this.action,
     this.warning = false,
+    this.glyph,
+    this.highlighted = false,
+    this.centered = false,
+    this.announce = true,
     super.key,
   });
   final String title, message;
   final Widget? action;
-  final bool warning;
+  final DesignGlyph? glyph;
+  final bool warning, highlighted, centered, announce;
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Semantics(
-      liveRegion: true,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: warning ? colors.tertiaryContainer : colors.surfaceContainer,
-          borderRadius: BorderRadius.circular(12),
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final icon = DesignIconWell(
+      glyph ?? (warning ? DesignGlyph.warning : DesignGlyph.info),
+      color: warning ? colors.tertiary : null,
+      background: warning ? colors.tertiaryContainer : null,
+      size: centered ? 64 : 44,
+      glyphSize: centered ? 32 : 24,
+    );
+    final copy = Column(
+      crossAxisAlignment: centered
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.titleSmall,
+          textAlign: centered ? TextAlign.center : TextAlign.start,
         ),
+        const SizedBox(height: 4),
+        Text(
+          message,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: warning ? colors.tertiary : colors.onSurfaceVariant,
+          ),
+          textAlign: centered ? TextAlign.center : TextAlign.start,
+        ),
+      ],
+    );
+    return Semantics(
+      liveRegion: announce,
+      child: DesignCard(
+        color: warning
+            ? colors.tertiaryContainer
+            : highlighted
+            ? colors.primaryContainer
+            : null,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(message),
+            if (centered) ...[
+              Center(child: icon),
+              const SizedBox(height: 12),
+              copy,
+            ] else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  icon,
+                  const SizedBox(width: 12),
+                  Expanded(child: copy),
+                ],
+              ),
             if (action != null) ...[const SizedBox(height: 12), action!],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class Metadata extends StatelessWidget {
+  const Metadata(this.text, {super.key});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Text(
+      text,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+        fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
   }
@@ -83,17 +143,32 @@ class FreshnessSection extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const Heading('Source freshness'),
-      if (version.freshness != SourceFreshness.fresh)
-        Notice(
-          version.freshness == SourceFreshness.stale
-              ? 'Source information may be outdated'
-              : 'Source freshness unknown',
-          'Previously retrieved information is retained. Refreshing this app does not trigger a new PRC source check.',
-          warning: true,
-        ),
-      Text(
-        'Last successful source check: ${sourceTime(version.lastSuccessfulCheckUtc)}',
+      Notice(
+        switch (version.freshness) {
+          SourceFreshness.fresh => 'Fresh',
+          SourceFreshness.stale => 'Stale',
+          SourceFreshness.unknown => 'Unknown',
+        },
+        switch (version.freshness) {
+          SourceFreshness.fresh =>
+            'The latest recorded source check is current.',
+          SourceFreshness.stale => 'Source information may be outdated',
+          SourceFreshness.unknown =>
+            version.lastSuccessfulCheckUtc == null
+                ? 'No source-check time is available for this selection.'
+                : 'The freshness of this source has not been confirmed.',
+        },
+        glyph: version.freshness == SourceFreshness.stale
+            ? DesignGlyph.warning
+            : DesignGlyph.freshness,
+        warning: version.freshness == SourceFreshness.stale,
       ),
+      if (version.lastSuccessfulCheckUtc != null) ...[
+        const SizedBox(height: 8),
+        Metadata(
+          'Last successful source check: ${sourceTime(version.lastSuccessfulCheckUtc)}',
+        ),
+      ],
     ],
   );
 }
@@ -128,7 +203,11 @@ class SourceLinks extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Heading('Official sources'),
+        if (links.isNotEmpty ||
+            version.publicationUrl != null ||
+            version.documentVersion.isNotEmpty ||
+            version.validatedAtUtc != null)
+          const Heading('Official sources'),
         OfficialSourceLinks(
           publicationUrl: version.publicationUrl,
           documents: links,
@@ -136,7 +215,7 @@ class SourceLinks extends StatelessWidget {
         if (version.documentVersion.isNotEmpty)
           SelectableText('Document version: ${version.documentVersion}'),
         if (version.validatedAtUtc != null)
-          Text('Validation time: ${sourceTime(version.validatedAtUtc)}'),
+          Metadata('Validation time: ${sourceTime(version.validatedAtUtc)}'),
       ],
     );
   }
@@ -174,7 +253,7 @@ class SourceButton extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 8),
     child: OutlinedButton.icon(
       onPressed: () => openSource(context, uri),
-      icon: const Icon(Icons.open_in_new),
+      icon: const DesignIcon(DesignGlyph.externalLink),
       label: Text(label),
     ),
   );
@@ -212,16 +291,18 @@ Future<void> openSource(
         title: const Text('Could not open this link'),
         content: SingleChildScrollView(child: SelectableText(uri.toString())),
         actions: [
-          TextButton(
+          TextButton.icon(
             onPressed: () => Navigator.pop(dialog),
-            child: const Text('Close'),
+            icon: const DesignIcon(DesignGlyph.close),
+            label: const Text('Close'),
           ),
-          TextButton(
+          TextButton.icon(
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: uri.toString()));
               if (dialog.mounted) Navigator.pop(dialog);
             },
-            child: const Text('Copy link'),
+            icon: const DesignIcon(DesignGlyph.copyLink),
+            label: const Text('Copy link'),
           ),
         ],
       ),
@@ -247,6 +328,9 @@ Future<bool> confirmDelete(
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialog, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(dialog).colorScheme.error,
+            ),
             child: const Text('Delete'),
           ),
         ],

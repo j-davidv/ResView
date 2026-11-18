@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../domain/models.dart';
 import '../data/exam_repository.dart';
+import 'design.dart';
 import 'shared.dart';
 
 class SelectedExam {
@@ -10,8 +13,10 @@ class SelectedExam {
   final Sitting sitting;
   final String categoryId;
   ExamSelection get selection => ExamSelection(exam.id, sitting.id, categoryId);
-  String get description =>
-      '${exam.title}\n${sitting.label}${categoryId == 'general' ? '' : '\n${sitting.categories[categoryId] ?? categoryId}'}';
+  String get details => categoryId == 'general'
+      ? sitting.label
+      : '${sitting.label}\n${sitting.categories[categoryId] ?? categoryId}';
+  String get description => '${exam.title}\n$details';
 }
 
 class ExamSelectionScreen extends StatefulWidget {
@@ -68,6 +73,22 @@ class _ExamSelectionState extends State<ExamSelectionScreen> {
     }
   }
 
+  Future<void> _chooseExam() async {
+    final exam = await _pick<Exam>(
+      'Choose exam',
+      _exams,
+      (exam) => exam.title,
+      search: true,
+    );
+    if (exam == null || !mounted) return;
+    setState(() {
+      _exam = exam;
+      _sitting = null;
+      _category = null;
+    });
+    await _load();
+  }
+
   Future<T?> _pick<T>(
     String title,
     List<T> values,
@@ -85,9 +106,9 @@ class _ExamSelectionState extends State<ExamSelectionScreen> {
   );
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      const Heading('Choose your exam'),
+      const Heading('Choose your exam', top: 0),
       const Text('Browse official announcements. No signup required.'),
       const SizedBox(height: 16),
       if (_busy)
@@ -96,7 +117,9 @@ class _ExamSelectionState extends State<ExamSelectionScreen> {
         Notice(
           'Exam catalog unavailable',
           'We could not retrieve the official catalog. Try again when the service is available.',
-          action: OutlinedButton(onPressed: _load, child: const Text('Retry')),
+          glyph: DesignGlyph.unreachable,
+          centered: true,
+          action: FilledButton(onPressed: _load, child: const Text('Retry')),
         ),
       if (!_busy && !_failed && _exams.isEmpty)
         Notice(
@@ -106,29 +129,13 @@ class _ExamSelectionState extends State<ExamSelectionScreen> {
         ),
       if (!_failed && _exams.isNotEmpty) ...[
         const Heading('Exam'),
-        OutlinedButton(
-          onPressed: _busy
-              ? null
-              : () async {
-                  final e = await _pick<Exam>(
-                    'Choose exam',
-                    _exams,
-                    (e) => e.title,
-                    search: true,
-                  );
-                  if (e != null && mounted) {
-                    setState(() {
-                      _exam = e;
-                      _sitting = null;
-                      _category = null;
-                    });
-                    await _load();
-                  }
-                },
-          child: Text(_exam?.title ?? 'Choose exam'),
+        OutlinedButton.icon(
+          onPressed: _busy ? null : _chooseExam,
+          icon: const DesignIcon(DesignGlyph.exam),
+          label: Text(_exam?.title ?? 'Choose exam'),
         ),
         const Heading('Sitting / date range'),
-        OutlinedButton(
+        OutlinedButton.icon(
           onPressed: _exam == null || _busy
               ? null
               : () async {
@@ -153,9 +160,10 @@ class _ExamSelectionState extends State<ExamSelectionScreen> {
                     });
                   }
                 },
-          child: Text(_sitting?.label ?? 'Choose sitting'),
+          icon: const DesignIcon(DesignGlyph.sitting),
+          label: Text(_sitting?.label ?? 'Choose sitting'),
         ),
-        TextButton(
+        TextButton.icon(
           onPressed: _exam == null
               ? null
               : () async {
@@ -167,7 +175,8 @@ class _ExamSelectionState extends State<ExamSelectionScreen> {
                   );
                   if (range != null && mounted) setState(() => _range = range);
                 },
-          child: Text(
+          icon: const DesignIcon(DesignGlyph.sitting),
+          label: Text(
             _range == null
                 ? 'Filter sitting dates'
                 : '${dateLabel(_range!.start)} – ${dateLabel(_range!.end)}',
@@ -236,36 +245,48 @@ class _ChoiceState<T> extends State<_ChoicePage<T>> {
         )
         .toList();
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(
+        leading: const DesignBackButton(),
+        toolbarHeight: math.max(
+          56,
+          MediaQuery.textScalerOf(context).scale(28) + 16,
+        ),
+        title: Text(widget.title),
+      ),
       body: SafeArea(
         child: Column(
           children: [
             if (widget.search)
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(screenGutter),
                 child: TextField(
                   decoration: const InputDecoration(
                     labelText: 'Search exams',
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: Center(
+                      widthFactor: 1,
+                      heightFactor: 1,
+                      child: DesignIcon(DesignGlyph.search),
+                    ),
                   ),
                   onChanged: (v) => setState(() => _query = v),
                 ),
               ),
             if (choices.isEmpty)
               const Padding(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.all(screenGutter),
                 child: Text(
                   'No choices found. Change the filter or try again later.',
                 ),
               ),
             Expanded(
               child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: screenGutter),
                 itemCount: choices.length,
                 separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, index) => ListTile(
                   minVerticalPadding: 16,
                   title: Text(widget.label(choices[index])),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: const DesignIcon(DesignGlyph.next),
                   onTap: () => Navigator.pop(context, choices[index]),
                 ),
               ),
