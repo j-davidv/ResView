@@ -1,204 +1,110 @@
+import 'package:app/main.dart' as app;
+import 'package:app/data/firestore_repository.dart';
+import 'package:app/domain/models.dart';
+import 'package:app/storage/private_store.dart';
+import 'package:app/ui/shared.dart';
 import 'package:flutter/material.dart';
-
-import 'dart:async';
-import 'dart:convert';
-
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:app/main.dart';
-import 'package:app/domain/models.dart';
-import 'package:app/domain/matching_worker.dart';
-import 'package:app/storage/list_store.dart';
-import 'package:app/storage/private_store.dart';
-import 'package:app/ui/results.dart';
-import 'package:app/ui/shared.dart';
+
+Future<void> waitFor(WidgetTester tester, Finder finder) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 60));
+  while (finder.evaluate().isEmpty && DateTime.now().isBefore(deadline)) {
+    await tester.pump(const Duration(milliseconds: 200));
+  }
+  expect(finder, findsWidgets);
+}
 
 void main() {
-  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets(
-    'near-limit isolated list leaves the root isolate responsive and cancellation stops matching',
-    (tester) async {
-      const selection = ExamSelection('test-only', 'test-only', 'general');
-      final entries = List.generate(
-        38000,
-        (i) => NameEntry(
-          sequence: i + 1,
-          publishedName: 'TEST ONLY, LONG ${'NAME ' * 80}$i',
-          sectionId: 'test-only',
-          physicalPage: 1,
-        ),
-      );
-      final byteCount = utf8
-          .encode(
-            jsonEncode(
-              entries
-                  .map(
-                    (e) => {
-                      'sequence': e.sequence,
-                      'publishedName': e.publishedName,
-                      'sectionId': e.sectionId,
-                      'physicalPage': e.physicalPage,
-                    },
-                  )
-                  .toList(),
-            ),
-          )
-          .length;
-      expect(byteCount, greaterThan(18 * 1024 * 1024));
-      expect(byteCount, lessThan(20 * 1024 * 1024));
-      final doc = NamesDocument(
-        selection: selection,
-        documentVersion: 'test-only',
-        entries: entries,
-      );
-      var ticks = 0;
-      final ticker = Timer.periodic(
-        const Duration(milliseconds: 16),
-        (_) => ticks++,
-      );
-      try {
-        expect(
-          await matchOnDevice(
-            doc,
-            const NameInput('NO EXACT', 'TEST ONLY', '', ''),
-            possible: false,
-          ),
-          isEmpty,
-        );
-      } finally {
-        ticker.cancel();
-      }
-      expect(ticks, greaterThan(0));
-      await expectLater(
-        matchOnDevice(
-          doc,
-          const NameInput('NO EXACT', 'TEST ONLY', '', ''),
-          possible: false,
-          registerCancellation: (cancel) => cancel(),
-        ),
-        throwsA(isA<ListFailure>()),
-      );
-    },
-  );
-  testWidgets(
-    'all publication states stay separate from stale freshness on Android',
+    'Android shows three destinations and legacy states retain source links',
     (tester) async {
       for (final state in PublicationState.values) {
         final version = ResultVersion(
-          selection: const ExamSelection('test-only', 'test-only', 'general'),
+          selection: const ExamSelection('test-only', 'test-sitting', 'all'),
           state: state,
           documentVersion: 'test-only',
-          freshness: SourceFreshness.stale,
-          lastSuccessfulCheckUtc: DateTime.utc(2026, 10, 14),
+          publicationUrl: Uri.parse('https://www.prc.gov.ph/article/test-only'),
+          documentUrl: Uri.parse(
+            'https://drive.google.com/file/d/TESTONLY123/view',
+          ),
         );
         await tester.pumpWidget(
           MaterialApp(
-            theme: appTheme(Brightness.light),
+            theme: app.appTheme(Brightness.light),
             home: Scaffold(
-              appBar: AppBar(title: const Text('Isolated state test')),
-              body: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: ResultsScreen(version: version, onCheck: () {}),
-              ),
+              body: SingleChildScrollView(child: SourceLinks(version)),
             ),
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text(publicationLabel(state)), findsOneWidget);
-        expect(find.text('Source information may be outdated'), findsOneWidget);
-        expect(tester.takeException(), isNull);
+        expect(find.text('Open successful-examinee list'), findsOneWidget);
+        expect(find.textContaining('Document version'), findsNothing);
       }
     },
   );
-  testWidgets(
-    'native background matching preserves accents and published entries',
-    (tester) async {
-      final doc = NamesDocument(
-        selection: const ExamSelection('test-only', 'test-only', 'general'),
-        documentVersion: 'test-only',
-        entries: [
-          const NameEntry(
-            sequence: 1,
-            publishedName: 'PEÑA, Ana Marie',
-            sectionId: 'test-only',
-            physicalPage: 1,
-          ),
-          const NameEntry(
-            sequence: 2,
-            publishedName: 'PEÑA, ANA MARIE',
-            sectionId: 'test-only',
-            physicalPage: 2,
-          ),
-        ],
-      );
-      final exact = await matchOnDevice(
-        doc,
-        const NameInput('PEN\u0303A', 'ANA MARIE', '', ''),
-        possible: false,
-      );
-      expect(exact.length, 2);
-      expect(exact.first.publishedName, 'PEÑA, Ana Marie');
-      expect(
-        await matchOnDevice(
-          doc,
-          const NameInput('PENA', 'ANA MARIE', '', ''),
-          possible: false,
-        ),
-        isEmpty,
-      );
-    },
-  );
-  testWidgets(
-    'normal Android runtime has honest availability and usable long-name form',
-    (tester) async {
-      await tester.pumpWidget(const ExamApp());
-      await tester.pumpAndSettle();
-      final skip = find.text('Skip introduction');
-      if (skip.evaluate().isNotEmpty) {
-        addTearDown(PrivateStore().resetIntroSeen);
-        await tester.ensureVisible(skip);
-        await tester.tap(skip);
-        await tester.pumpAndSettle();
-      }
-      expect(find.text('Exam catalog unavailable'), findsOneWidget);
-      expect(find.textContaining('Demo data'), findsNothing);
-      await tester.tap(find.text('Check name').last);
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byType(TextFormField).first,
-        'TEST ONLY — PEÑA DELA CRUZ COMPOUND SURNAME WITH LONG TEXT',
-      );
-      await tester.enterText(
-        find.byType(TextFormField).at(1),
-        'TEST ONLY LONG GIVEN NAMES',
-      );
-      expect(tester.takeException(), isNull);
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      FocusManager.instance.primaryFocus?.unfocus();
-      await tester.pumpAndSettle();
-      final semantics = tester.ensureSemantics();
-      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-      semantics.dispose();
-      expect(
-        await const MethodChannel('org.resview/private')
-            .invokeMethod<String>('normalizeNfc', 'PEN\u0303A'),
-        'PEÑA',
-      );
-      await binding.convertFlutterSurfaceToImage();
-      await tester.pumpAndSettle();
-      await binding.takeScreenshot('check-name');
-      await tester.tap(find.text('Settings').last);
-      await tester.pumpAndSettle();
-      expect(find.text('Privacy and data'), findsOneWidget);
-      final email = find.text('Email updates');
-      await tester.ensureVisible(email);
-      await tester.tap(email);
-      await tester.pumpAndSettle();
-      expect(find.text('Email signup unavailable'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox.shrink());
-    },
-  );
+
+  if (const bool.fromEnvironment('RESVIEW_LIVE_TEST')) {
+    testWidgets(
+      'live catalog, result sources, settings and saved selection on Android',
+      (tester) async {
+        final store = PrivateStore();
+        final originalSelection = await store.readSelection();
+        final introSeen = await store.readIntroSeen();
+        const selection = ExamSelection(
+          'ocular-pharmacologists',
+          'ocular-pharmacologists-2026-09-28',
+          'all',
+        );
+        try {
+          final repository = FirestoreExamRepository.fromEnvironment();
+          expect(
+            (await repository.loadCatalog()).any(
+              (e) => e.id == selection.examId,
+            ),
+            isTrue,
+          );
+          expect(
+            (await repository.loadSittings(selection.examId))
+                .any((s) => s.id == selection.sittingId),
+            isTrue,
+          );
+          await store.saveSelection(selection);
+          await store.markIntroSeen();
+          await app.main();
+          await waitFor(tester, find.textContaining('Ocular Pharmacologists'));
+          await tester.tap(find.text('Results').last);
+          await waitFor(tester, find.text('Results released'));
+          await tester.pumpAndSettle();
+          expect(find.byType(NavigationDestination), findsNWidgets(3));
+          expect(find.text('Check name'), findsNothing);
+          expect(find.textContaining('Document version'), findsNothing);
+          expect(find.text('Open successful-examinee list'), findsOneWidget);
+          expect(find.text('Open PRC publication'), findsOneWidget);
+          await tester.tap(find.text('Settings').last);
+          await tester.pumpAndSettle();
+          expect(find.text('Saved name'), findsNothing);
+          expect(find.text('Offline lists'), findsNothing);
+          expect(find.text('Push alerts'), findsOneWidget);
+          await tester.ensureVisible(find.text('Email updates'));
+          await tester.tap(find.text('Email updates'));
+          await tester.pumpAndSettle();
+          expect(find.text('Email signup unavailable'), findsOneWidget);
+          await tester.tap(find.byTooltip('Back'));
+          await tester.pumpAndSettle();
+          expect(await store.readSelection(), selection);
+          expect(tester.takeException(), isNull);
+        } finally {
+          await tester.pumpWidget(const SizedBox.shrink());
+          if (originalSelection != null) {
+            await store.saveSelection(originalSelection);
+          } else {
+            await store.clearLocalValues();
+          }
+          if (!introSeen) await store.resetIntroSeen();
+        }
+      },
+    );
+  }
 }

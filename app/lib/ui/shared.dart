@@ -7,22 +7,20 @@ import '../domain/models.dart';
 import 'design.dart';
 import 'source_viewer.dart';
 
-const privacyDisclosure = '''Your name stays on this device and is used here to check a validated PRC list. We do not send your entered name or personal matching result to our servers. Public result lists may contain names already published by PRC.
+const privacyDisclosure = '''ResView saves your selected exam on this device so you can return to its official announcements and result lists.
 
-Manual source viewing connects to PRC and Google Drive. Document search is handled by Google Drive; ResView does not save the search text or copy your saved name into it. This is separate from validated on-device checking.
+Opening an official source connects to PRC or Google Drive and requires internet access. Google Drive handles searches made in its document viewer. ResView does not save that search text.
 
-If you enable push alerts, Firebase processes an anonymous account identifier, your exam preferences, and a device notification token. No password is required, but this does not mean no information leaves the device.
+If you enable push alerts, Firebase processes an anonymous account identifier, your exam preferences, and a device notification token.
 
-If you subscribe to emails, Brevo stores your email address and selected exam preferences to confirm your subscription and send updates. You can unsubscribe from an email. Uninstalling the app does not unsubscribe you from email updates.
+If you subscribe to emails, Brevo stores your email address and selected exam preferences to confirm your subscription and send updates. You can unsubscribe from an email.
 
-Downloaded lists are temporary unless you choose to save them offline. You can delete your saved name and offline files in Settings. A matching published name does not confirm your identity, and an absent name does not mean you failed the exam.''';
+Delete local data in Settings to remove your exam selection and any files from earlier app versions. Email subscriptions and server push preferences have separate controls.''';
 
 String publicationLabel(PublicationState state) => switch (state) {
   PublicationState.notReleased => 'Not released',
-  PublicationState.validationPending => 'Released; validation pending',
-  PublicationState.checkingAvailable => 'Checking available',
-  PublicationState.checkingUnavailable => 'Checking unavailable',
-  PublicationState.superseded => 'Superseded',
+  PublicationState.superseded => 'Updated publication',
+  _ => 'Results released',
 };
 
 class Heading extends StatelessWidget {
@@ -203,19 +201,12 @@ class SourceLinks extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (links.isNotEmpty ||
-            version.publicationUrl != null ||
-            version.documentVersion.isNotEmpty ||
-            version.validatedAtUtc != null)
+        if (links.isNotEmpty || version.publicationUrl != null)
           const Heading('Official sources'),
         OfficialSourceLinks(
           publicationUrl: version.publicationUrl,
           documents: links,
         ),
-        if (version.documentVersion.isNotEmpty)
-          SelectableText('Document version: ${version.documentVersion}'),
-        if (version.validatedAtUtc != null)
-          Metadata('Validation time: ${sourceTime(version.validatedAtUtc)}'),
       ],
     );
   }

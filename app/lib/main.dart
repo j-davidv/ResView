@@ -11,7 +11,6 @@ import 'data/firestore_repository.dart';
 import 'domain/models.dart';
 import 'storage/private_store.dart';
 import 'storage/list_store.dart';
-import 'ui/check_name.dart';
 import 'ui/design.dart';
 import 'ui/exam_selection.dart';
 import 'ui/launch.dart';
@@ -48,7 +47,7 @@ class ExamApp extends StatelessWidget {
   final ListStore? listStore;
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'PRC Exam Updates',
+    title: 'ResView',
     debugShowCheckedModeBanner: false,
     theme: appTheme(Brightness.light),
     darkTheme: appTheme(Brightness.dark),
@@ -74,8 +73,6 @@ class _ExamHomeState extends State<_ExamHome> {
   late final _push = PushPreferences(store: _store);
   int _destination = 0, _generation = 0;
   SelectedExam? _selected;
-  String? _savedDescription;
-  NameInput? _nameDraft;
   ResultVersion? _version;
   List<Publication> _publications = [];
   bool _loading = false, _failed = false;
@@ -171,11 +168,12 @@ class _ExamHomeState extends State<_ExamHome> {
 
   Future<void> _cleanupLists() async {
     try {
-      await _lists.cleanupTemporary();
+      await _store.deleteName();
+      await _lists.clearAll();
     } catch (_) {
       if (mounted) {
         setState(
-          () => _localError = 'Temporary lists could not be cleaned up.',
+          () => _localError = 'Data from the retired name checker could not be removed. Retry deleting local data in Settings.',
         );
       }
     }
@@ -237,7 +235,6 @@ class _ExamHomeState extends State<_ExamHome> {
     final generation = ++_generation;
     setState(() {
       _selected = selected;
-      _savedDescription = null;
       _version = null;
       _publications = [];
       _restoringSelection = false;
@@ -268,23 +265,11 @@ class _ExamHomeState extends State<_ExamHome> {
     });
     try {
       final publications = await widget.repository.loadPublications(selection);
+      if (!mounted || generation != _generation) return;
+      setState(() => _publications = publications);
       final version = await widget.repository.loadResultVersion(selection);
       if (mounted && generation == _generation) {
-        setState(() {
-          _publications = publications;
-          _version = version;
-        });
-        if (version != null) {
-          try {
-            await _lists.observeVersion(version);
-          } catch (_) {
-            if (mounted) {
-              setState(
-                () => _localError = 'Saved-list version status could not be updated. Retry before reusing an offline list.',
-              );
-            }
-          }
-        }
+        setState(() => _version = version);
       }
     } catch (_) {
       if (mounted && generation == _generation) {
@@ -351,7 +336,7 @@ class _ExamHomeState extends State<_ExamHome> {
   }
 
   Widget _content() {
-    if (_destination == 3) {
+    if (_destination == 2) {
       return SettingsScreen(
         store: _store,
         lists: _lists,
@@ -361,12 +346,8 @@ class _ExamHomeState extends State<_ExamHome> {
         examDetails: _selected?.details,
         restoringPush: _restoringPush,
         onChange: _change,
-        onEditName: () => setState(() => _destination = 2),
-        onNameDeleted: () => _nameDraft = null,
         onLocalDeleted: () => setState(() {
-          _nameDraft = null;
           _selected = null;
-          _savedDescription = null;
           _version = null;
           _publications = [];
           _generation++;
@@ -374,35 +355,8 @@ class _ExamHomeState extends State<_ExamHome> {
           _selectionToRetry = null;
           _loading = false;
           _failed = false;
+          _localError = null;
         }),
-        onUseSaved: (saved) => setState(() {
-          _generation++;
-          _selected = null;
-          _savedDescription = saved.contextDescription;
-          _version = saved.version;
-          _publications = [];
-          _restoringSelection = false;
-          _selectionToRetry = null;
-          _loading = false;
-          _failed = false;
-          _destination = 2;
-        }),
-      );
-    }
-    if (_destination == 2) {
-      return CheckNameScreen(
-        key: ValueKey(
-          '${_selected?.selection.hashCode}/${_version?.documentVersion}/${_version?.state}',
-        ),
-        version: _version,
-        publications: _publications,
-        store: _store,
-        lists: _lists,
-        contextDescription: _selected?.description ?? _savedDescription,
-        initialDraft: _nameDraft,
-        onDraftChanged: (name) => _nameDraft = name,
-        hasSelection: _selected != null || _version != null,
-        onViewResults: () => setState(() => _destination = 1),
       );
     }
     if (_destination == 1) {
@@ -410,7 +364,6 @@ class _ExamHomeState extends State<_ExamHome> {
         version: _version,
         publications: _publications,
         loading: _loading || _restoringSelection,
-        onCheck: () => setState(() => _destination = 2),
         onChooseExam: _selected == null && _version == null ? _change : null,
         onRetry: _failed && _publications.isEmpty ? _refresh : null,
       );
@@ -432,21 +385,13 @@ class _ExamHomeState extends State<_ExamHome> {
             repository: widget.repository,
             onSelected: _select,
           ),
-          const SizedBox(height: 12),
-          const Notice(
-            'Your name stays on this device.',
-            'You can browse without entering a name.',
-            glyph: DesignGlyph.privacy,
-            highlighted: true,
-            announce: false,
-          ),
         ],
       );
     }
     if (_loading && _version == null && _publications.isEmpty) {
       return const Notice(
         'Loading official information',
-        'Retrieving available publications and validation metadata.',
+        'Retrieving official announcements and result links.',
         action: LinearProgressIndicator(
           semanticsLabel: 'Loading official information',
         ),
@@ -506,13 +451,7 @@ class _ExamHomeState extends State<_ExamHome> {
                 child: const Text('Retry'),
               ),
             ),
-          if (_selected == null && _version != null)
-            Notice(
-              'Saved offline list',
-              '${_savedDescription ?? 'Saved exam context unavailable. Confirm the sitting in the official publication.'}\nThis device cannot know about corrections published while offline.',
-              warning: true,
-            ),
-          if (_localError != null && _destination == 3)
+          if (_localError != null && _destination == 2)
             Notice('Device preferences', _localError!),
           if (_failed && (_version != null || _publications.isNotEmpty))
             const Notice(

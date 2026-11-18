@@ -5,16 +5,17 @@ import 'package:app/domain/models.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
-  test('name deletion preserves selection and local deletion preserves pending server intent', () async {
+  test('legacy name cleanup preserves selection and deletion preserves push retry intent', () async {
+    FlutterSecureStorage.setMockInitialValues({
+      'name': '{"surname":"TEST ONLY"}',
+    });
+    const storage = FlutterSecureStorage();
     final store = PrivateStore();
-    await store.saveName(const NameInput('PEÑA', 'ANA MARIE', 'SANTOS', 'JR'));
     await store.saveSelection(
       const ExamSelection('test', 'sitting', 'general'),
     );
-    expect((await store.readName())!.surname, 'PEÑA');
     await store.deleteName();
-    expect(await store.readName(), isNull);
+    expect(await storage.read(key: 'name'), isNull);
     expect((await store.readSelection())!.sittingId, 'sitting');
     await store.setPendingPushDeletion(true);
     await store.clearLocalValues();

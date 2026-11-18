@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="resview_launch_canvas">#F5F7F3</color>
+    <color name="resview_launcher_background">#28643E</color>
 </resources>

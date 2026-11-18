@@ -19,11 +19,10 @@ class ExamShell extends StatelessWidget {
     super.key,
   });
 
-  static const _titles = ['Updates', 'Results', 'Check name', 'Settings'];
+  static const _titles = ['Updates', 'Results', 'Settings'];
   static const _glyphs = [
     DesignGlyph.updates,
     DesignGlyph.results,
-    DesignGlyph.checkName,
     DesignGlyph.settings,
   ];
 
@@ -48,7 +47,7 @@ class ExamShell extends StatelessWidget {
           scaler.scale(28) > 40 ||
           MediaQuery.viewInsetsOf(context).bottom > 0;
       final title = _titles[destination];
-      final showContext = destination != 3 && !restoringSelection;
+      final showContext = destination != 2 && !restoringSelection;
       final contextCard = ExamContextCard(
         title: examTitle,
         details: examDetails,
@@ -56,7 +55,6 @@ class ExamShell extends StatelessWidget {
         description: switch (destination) {
           1 =>
             'Choose an exam and sitting to view results and other information.',
-          2 => 'Choose an exam to check names.',
           _ => null,
         },
       );
@@ -128,7 +126,7 @@ class ExamShell extends StatelessWidget {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'PRC Exam Updates',
+                                            'ResView',
                                             style: theme.textTheme.bodySmall
                                                 ?.copyWith(
                                                   color: headerSecondary,

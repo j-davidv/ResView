@@ -14,15 +14,6 @@ class PrivateStore {
       _storage.write(key: 'introSeen', value: 'true');
   Future<void> resetIntroSeen() => _storage.delete(key: 'introSeen');
 
-  Future<NameInput?> readName() async {
-    final value = await _storage.read(key: 'name');
-    return value == null
-        ? null
-        : NameInput.fromJson(jsonDecode(value) as Map<String, dynamic>);
-  }
-
-  Future<void> saveName(NameInput name) =>
-      _storage.write(key: 'name', value: jsonEncode(name.toJson()));
   Future<void> deleteName() => _storage.delete(key: 'name');
   Future<ExamSelection?> readSelection() async {
     final value = await _storage.read(key: 'selection');

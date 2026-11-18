@@ -11,17 +11,16 @@ void main() {
     'native private storage and filesystem boundaries preserve deletion intent',
     (tester) async {
       final store = PrivateStore();
-      final originalName = await store.readName();
       final originalSelection = await store.readSelection();
       final originalPending = await store.pendingPushDeletion();
       try {
-        await store.saveName(
-          const NameInput('TEST ONLY PEÑA', 'PRIVATE LOCAL TEST', '', ''),
+        await store.saveSelection(
+          const ExamSelection('test-only', 'test-sitting', 'all'),
         );
-        expect((await store.readName())!.surname, 'TEST ONLY PEÑA');
+        expect((await store.readSelection())!.examId, 'test-only');
         await store.setPendingPushDeletion(true);
         await store.clearLocalValues();
-        expect(await store.readName(), isNull);
+        expect(await store.readSelection(), isNull);
         expect(await store.pendingPushDeletion(), isTrue);
         final directory = await getApplicationSupportDirectory();
         expect(
@@ -36,7 +35,6 @@ void main() {
         );
       } finally {
         await store.setPendingPushDeletion(originalPending);
-        if (originalName != null) await store.saveName(originalName);
         if (originalSelection != null) {
           await store.saveSelection(originalSelection);
         }

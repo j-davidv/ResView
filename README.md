@@ -1,6 +1,8 @@
-# PRC Exam Updates
+# ResView
 
 Native Android Flutter app implementing the approved Material 3 UI. Open `app/` in Android Studio. Without live configuration it reports services unavailable; no sample catalog/results or simulated delivery are substituted.
+
+Browse official PRC updates and result lists through Updates, Results, and Settings. Automatic name validation and saved checker lists have been retired; supported official Drive documents keep manual Find text. Android uses the ResView name and RV logo.
 
 - [Approved design](DESIGN.md)
 - [Setup and Android Studio runbook](docs/android-studio-runbook.md)

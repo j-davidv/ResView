@@ -18,10 +18,7 @@ class SettingsScreen extends StatefulWidget {
     required this.push,
     required this.selection,
     required this.onChange,
-    required this.onEditName,
     required this.onLocalDeleted,
-    this.onNameDeleted,
-    required this.onUseSaved,
     this.examTitle,
     this.examDetails,
     this.restoringPush = false,
@@ -33,9 +30,7 @@ class SettingsScreen extends StatefulWidget {
   final ExamSelection? selection;
   final String? examTitle, examDetails;
   final bool restoringPush;
-  final VoidCallback onChange, onEditName, onLocalDeleted;
-  final VoidCallback? onNameDeleted;
-  final ValueChanged<SavedList> onUseSaved;
+  final VoidCallback onChange, onLocalDeleted;
   @override
   State<SettingsScreen> createState() => _SettingsState();
 }
@@ -45,18 +40,10 @@ class _SettingsState extends State<SettingsScreen> {
   static const _policyUrl = String.fromEnvironment('PRIVACY_POLICY_URL');
   static const _contactUrl = String.fromEnvironment('MAINTAINER_CONTACT_URL');
   final _detailRevision = ValueNotifier(0);
-  List<SavedList> _saved = [];
-  bool? _hasName;
-  bool _listsRead = false, _busy = false;
+  bool _busy = false;
   String? _error;
   Future<void> Function()? _retryAction;
   String? _retrySuccess;
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
   @override
   void dispose() {
     _detailRevision.dispose();
@@ -67,26 +54,6 @@ class _SettingsState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(update);
     _detailRevision.value++;
-  }
-
-  Future<void> _load() async {
-    try {
-      final saved = await widget.lists.listSaved();
-      final name = await widget.store.readName();
-      if (mounted) {
-        _update(() {
-          _saved = saved;
-          _listsRead = true;
-          _hasName = name != null;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        _update(
-          () => _error = 'Device data could not be read. Retry without deleting your saved files.',
-        );
-      }
-    }
   }
 
   Future<void> _operation(
@@ -101,7 +68,6 @@ class _SettingsState extends State<SettingsScreen> {
     });
     try {
       await action();
-      await _load();
       if (mounted) feedback(context, success);
     } catch (error) {
       if (mounted) {
@@ -121,9 +87,7 @@ class _SettingsState extends State<SettingsScreen> {
   Future<void> _push(bool enabled) async {
     if (enabled) {
       if (widget.selection == null) {
-        setState(
-          () => _error = 'Choose an exam and sitting before enabling alerts.',
-        );
+        feedback(context, 'Choose an exam and sitting before enabling alerts.');
         return;
       }
       final consent = await showDialog<bool>(
@@ -132,7 +96,7 @@ class _SettingsState extends State<SettingsScreen> {
           scrollable: true,
           title: const Text('Enable push alerts?'),
           content: const Text(
-            'Firebase will process an anonymous account identifier, your exam preference, and a device notification token. Alerts announce official publications, never your entered name or personal outcome.',
+            'Firebase will process an anonymous account identifier, your exam preference, and a device notification token. Alerts announce official PRC publications for your selected exam.',
           ),
           actions: [
             TextButton(
@@ -156,25 +120,6 @@ class _SettingsState extends State<SettingsScreen> {
           ? 'Push preference registered. Delivery is not guaranteed.'
           : 'Push preferences deleted.',
     );
-  }
-
-  String get _nameStatus => switch (_hasName) {
-    true => 'A name is saved on this device.',
-    false => 'No name saved',
-    null => _error == null ? 'Reading saved name…' : 'Saved name unavailable',
-  };
-
-  int get _savedBytes => _saved.fold(0, (sum, item) => sum + item.bytes);
-
-  String get _listStatus {
-    if (!_listsRead) {
-      return _error == null
-          ? 'Reading offline lists…'
-          : 'Offline lists unavailable';
-    }
-    return _saved.isEmpty
-        ? 'No lists saved · 50 MiB limit'
-        : '${(_savedBytes / (1024 * 1024)).toStringAsFixed(2)} MiB / 50 MiB';
   }
 
   void _openDetails(String title, List<Widget> Function() contents) {
@@ -211,113 +156,6 @@ class _SettingsState extends State<SettingsScreen> {
         ),
       ),
     );
-  }
-
-  List<Widget> _nameDetails() => [
-    Text(_nameStatus),
-    const SizedBox(height: 12),
-    OutlinedButton.icon(
-      onPressed: _busy
-          ? null
-          : () {
-              Navigator.of(context).pop();
-              widget.onEditName();
-            },
-      icon: const DesignIcon(DesignGlyph.editName),
-      label: Text(_hasName == true ? 'Edit saved name' : 'Enter a name'),
-    ),
-    const SizedBox(height: 8),
-    OutlinedButton.icon(
-      onPressed: _hasName != true || _busy ? null : _deleteName,
-      icon: const DesignIcon(DesignGlyph.delete),
-      label: const Text('Delete saved name'),
-    ),
-  ];
-
-  Future<void> _deleteName() async {
-    if (await confirmDelete(
-      context,
-      'Delete saved name?',
-      'Remove your name from this device. Exam selection and offline lists stay saved.',
-    )) {
-      await _operation(() async {
-        await widget.store.deleteName();
-        widget.onNameDeleted?.call();
-      }, 'Saved name deleted.');
-    }
-  }
-
-  List<Widget> _listDetails() => [
-    Metadata(_listStatus),
-    for (final item in _saved) ...[
-      const SizedBox(height: 12),
-      DesignCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              item.contextDescription ?? 'Saved exam context unavailable. Open its official publication to confirm the sitting.',
-            ),
-            const SizedBox(height: 8),
-            SelectableText('Version: ${item.version.documentVersion}'),
-            Metadata('${(item.bytes / (1024 * 1024)).toStringAsFixed(2)} MiB'),
-            const SizedBox(height: 8),
-            if (item.outdated)
-              const Notice(
-                'Outdated offline list',
-                'A newer official version is known. Use the latest publication.',
-                warning: true,
-              )
-            else
-              const Text(
-                'This device cannot know about corrections published while offline.',
-              ),
-            if (item.version.lastSuccessfulCheckUtc != null) ...[
-              const SizedBox(height: 8),
-              Metadata(
-                'Last source check: ${sourceTime(item.version.lastSuccessfulCheckUtc)}',
-              ),
-            ],
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [
-                OutlinedButton(
-                  onPressed: item.outdated || _busy
-                      ? null
-                      : () {
-                          Navigator.of(context).pop();
-                          widget.onUseSaved(item);
-                        },
-                  child: const Text('Use saved list'),
-                ),
-                TextButton.icon(
-                  onPressed: _busy ? null : () => _deleteList(item),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error,
-                  ),
-                  icon: const DesignIcon(DesignGlyph.delete),
-                  label: const Text('Delete list'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ],
-  ];
-
-  Future<void> _deleteList(SavedList item) async {
-    if (await confirmDelete(
-      context,
-      'Delete offline list?',
-      'Remove version ${item.version.documentVersion} from this device?',
-    )) {
-      await _operation(
-        () => widget.lists.deleteSaved(item.id),
-        'Offline list deleted.',
-      );
-    }
   }
 
   List<Widget> _emailDetails() => [
@@ -420,7 +258,7 @@ class _SettingsState extends State<SettingsScreen> {
     if (await confirmDelete(
       context,
       'Delete local data?',
-      'Delete your saved name, exam selection, and downloaded lists on this device. This does not unsubscribe email or delete server push preferences. Pending server deletion will be retained.',
+      'Delete your saved exam selection and any files from earlier app versions. Email subscriptions and server push preferences are managed separately.',
     )) {
       await _operation(() async {
         await widget.lists.clearAll();
@@ -462,10 +300,7 @@ class _SettingsState extends State<SettingsScreen> {
             OutlinedButton(
               onPressed: _busy
                   ? null
-                  : () => _operation(
-                      _retryAction ?? _load,
-                      _retrySuccess ?? 'Device data refreshed.',
-                    ),
+                  : () => _operation(_retryAction!, _retrySuccess!),
               child: const Text('Retry'),
             ),
             if (_error!.startsWith('Notification permission denied'))
@@ -489,27 +324,6 @@ class _SettingsState extends State<SettingsScreen> {
         details: widget.examDetails,
         onChoose: _busy ? null : widget.onChange,
         settings: true,
-      ),
-      const Heading('On this device'),
-      DesignCard(
-        padding: EdgeInsets.zero,
-        child: Column(
-          children: [
-            _SettingsRow(
-              DesignGlyph.name,
-              'Saved name',
-              subtitle: _nameStatus,
-              onTap: () => _openDetails('Saved name', _nameDetails),
-            ),
-            const Divider(height: 1, indent: 8, endIndent: 8),
-            _SettingsRow(
-              DesignGlyph.offlineLists,
-              'Offline lists',
-              subtitle: _listStatus,
-              onTap: () => _openDetails('Offline lists', _listDetails),
-            ),
-          ],
-        ),
       ),
       const Heading('Alerts'),
       DesignCard(

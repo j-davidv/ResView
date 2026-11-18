@@ -80,7 +80,7 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-  testWidgets('large-text landscape keeps navigation and name inputs usable', (
+  testWidgets('large-text landscape keeps all three destinations usable', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(800, 360);
@@ -91,14 +91,13 @@ void main() {
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     await tester.pumpWidget(ExamApp(listStore: TestListStore()));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Check name').last);
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    await tester.enterText(
-      find.byType(TextFormField).first,
-      'TEST ONLY PEÑA DELA CRUZ VERY LONG COMPOUND SURNAME',
-    );
-    await tester.pump();
-    expect(tester.takeException(), isNull);
+    for (final title in ['Results', 'Settings', 'Updates']) {
+      final tab = find.text(title).last;
+      await tester.ensureVisible(tab);
+      await tester.tap(tab);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+    expect(find.text('Check name'), findsNothing);
   });
 }

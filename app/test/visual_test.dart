@@ -71,7 +71,6 @@ void main() {
       );
       for (final (tab, file) in [
         ('Results', 'results'),
-        ('Check name', 'check-name'),
         ('Settings', 'settings'),
       ]) {
         await tester.tap(find.widgetWithText(NavigationDestination, tab));
@@ -95,12 +94,6 @@ void main() {
       await expectLater(
         frame,
         matchesGoldenFile('goldens/unavailable-${brightness.name}-200.png'),
-      );
-      await tester.tap(find.text('Check name').last);
-      await settle(tester);
-      await expectLater(
-        frame,
-        matchesGoldenFile('goldens/check-name-${brightness.name}-200.png'),
       );
       expect(tester.takeException(), isNull);
     });

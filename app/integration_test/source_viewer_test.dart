@@ -110,7 +110,7 @@ void main() {
     await waitFor(
       tester,
       () =>
-          find.text(expected).evaluate().isNotEmpty ||
+          find.textContaining('text matches').evaluate().isNotEmpty ||
           find
               .textContaining('Retry or open this source')
               .evaluate()
@@ -122,7 +122,11 @@ void main() {
       reason: tester
           .widgetList<Text>(find.byType(Text))
           .map((text) => text.data ?? '')
-          .where((text) => text.contains('Retry or open this source'))
+          .where(
+            (text) =>
+                text.contains('text matches') ||
+                text.contains('Retry or open this source'),
+          )
           .join(),
     );
     expect(tester.takeException(), isNull);
