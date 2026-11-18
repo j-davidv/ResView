@@ -25,6 +25,41 @@ void main() {
     'VIEWER_TEST_RESTRICTED_QUERY',
   );
 
+  testWidgets('PRC notice floats over the native viewer and dismisses', (
+    tester,
+  ) async {
+    for (final manual in [false, true]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: appTheme(Brightness.light),
+          home: SourceViewer(
+            key: ValueKey(manual),
+            uri: Uri.parse('https://www.prc.gov.ph/'),
+            openExternal: (_) async {},
+          ),
+        ),
+      );
+      final notice = find.textContaining('You are viewing PRC online');
+      expect(notice, findsOneWidget);
+      expect(find.byType(AndroidView), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byType(AndroidView)).dy,
+        lessThanOrEqualTo(tester.getBottomLeft(find.byType(AppBar)).dy + 4),
+      );
+      if (manual) {
+        await tester.tap(find.byTooltip('Close notice'));
+        await tester.pump();
+      } else {
+        await tester.pump(const Duration(seconds: 3));
+      }
+      expect(notice, findsNothing);
+      expect(find.byTooltip('Close notice'), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
   testWidgets(
     'native viewer rejects an untrusted origin and offers retry without a false search outcome',
     (tester) async {
@@ -48,6 +83,7 @@ void main() {
         find.text('No text matches. This is not an exam outcome.'),
         findsNothing,
       );
+      expect(find.byTooltip('Close notice'), findsNothing);
       await tester.ensureVisible(find.text('Retry'));
       await tester.tap(find.text('Retry'));
       await waitFor(

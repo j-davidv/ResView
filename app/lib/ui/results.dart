@@ -64,17 +64,6 @@ class ResultsScreen extends StatelessWidget {
               : null,
         ),
         if (current != null)
-          FreshnessSection(current)
-        else ...[
-          const Heading('Source freshness'),
-          const Notice(
-            'Unknown',
-            'No source-check time is available for this selection.',
-            glyph: DesignGlyph.freshness,
-            announce: false,
-          ),
-        ],
-        if (current != null)
           SourceLinks(current, publications: publications)
         else if (publications.firstOrNull case final publication?) ...[
           const Heading('Official sources'),

@@ -92,7 +92,8 @@ void main() {
           ),
         );
         expect(find.text(publicationLabel(state)), findsOneWidget);
-        expect(find.text('Source information may be outdated'), findsOneWidget);
+        expect(find.text('Source freshness'), findsNothing);
+        expect(find.text('Source information may be outdated'), findsNothing);
         expect(find.text('Open PRC publication'), findsOneWidget);
         expect(find.textContaining('Document version'), findsNothing);
         expect(find.textContaining('validation'), findsNothing);
@@ -124,6 +125,8 @@ void main() {
       expect(await PrivateStore().readSelection(), selection);
       expect(find.byType(NavigationDestination), findsNWidgets(3));
       expect(find.text('Check name'), findsNothing);
+      expect(find.text('Source freshness'), findsNothing);
+      expect(find.text('Stale'), findsNothing);
       await tester.tap(find.text('Results').last);
       await tester.pumpAndSettle();
       expect(find.text('Results released'), findsOneWidget);

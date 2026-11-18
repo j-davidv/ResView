@@ -133,44 +133,6 @@ class Metadata extends StatelessWidget {
   }
 }
 
-class FreshnessSection extends StatelessWidget {
-  const FreshnessSection(this.version, {super.key});
-  final ResultVersion version;
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Heading('Source freshness'),
-      Notice(
-        switch (version.freshness) {
-          SourceFreshness.fresh => 'Fresh',
-          SourceFreshness.stale => 'Stale',
-          SourceFreshness.unknown => 'Unknown',
-        },
-        switch (version.freshness) {
-          SourceFreshness.fresh =>
-            'The latest recorded source check is current.',
-          SourceFreshness.stale => 'Source information may be outdated',
-          SourceFreshness.unknown =>
-            version.lastSuccessfulCheckUtc == null
-                ? 'No source-check time is available for this selection.'
-                : 'The freshness of this source has not been confirmed.',
-        },
-        glyph: version.freshness == SourceFreshness.stale
-            ? DesignGlyph.warning
-            : DesignGlyph.freshness,
-        warning: version.freshness == SourceFreshness.stale,
-      ),
-      if (version.lastSuccessfulCheckUtc != null) ...[
-        const SizedBox(height: 8),
-        Metadata(
-          'Last successful source check: ${sourceTime(version.lastSuccessfulCheckUtc)}',
-        ),
-      ],
-    ],
-  );
-}
-
 class SourceLinks extends StatelessWidget {
   const SourceLinks(this.version, {this.publications = const [], super.key});
   final ResultVersion version;
@@ -243,6 +205,10 @@ class SourceButton extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        shape: const StadiumBorder(),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      ),
       onPressed: () => openSource(context, uri),
       icon: const DesignIcon(DesignGlyph.externalLink),
       label: Text(label),

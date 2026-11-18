@@ -16,7 +16,6 @@ class UpdatesScreen extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      if (version != null) FreshnessSection(version!),
       if (publications.isEmpty)
         const Notice(
           'No announcements found for this selection',
