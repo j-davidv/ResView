@@ -3,6 +3,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'design.dart';
+
 Uri? sourceViewerUrl(Uri uri) {
   if (uri.scheme != 'https' ||
       uri.userInfo.isNotEmpty ||
@@ -154,19 +156,19 @@ class _SourceViewerState extends State<SourceViewer> {
         appBar: AppBar(
           leading: IconButton(
             tooltip: 'Back',
-            icon: const Icon(Icons.arrow_back),
+            icon: const DesignIcon(DesignGlyph.back),
             onPressed: _back,
           ),
           title: const Text('Source'),
           actions: [
             IconButton(
               tooltip: 'Reload source',
-              icon: const Icon(Icons.refresh),
+              icon: const DesignIcon(DesignGlyph.refresh),
               onPressed: _retry,
             ),
             IconButton(
               tooltip: 'Open in browser',
-              icon: const Icon(Icons.open_in_new),
+              icon: const DesignIcon(DesignGlyph.externalLink),
               onPressed: () => widget.openExternal(_uri),
             ),
           ],
@@ -178,7 +180,7 @@ class _SourceViewerState extends State<SourceViewer> {
                 ConstrainedBox(
                   constraints: BoxConstraints(maxHeight: size.maxHeight * .55),
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(screenGutter),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

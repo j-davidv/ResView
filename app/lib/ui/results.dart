@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../domain/models.dart';
+import 'design.dart';
 import 'shared.dart';
 
 class ResultsScreen extends StatelessWidget {
@@ -8,31 +9,75 @@ class ResultsScreen extends StatelessWidget {
     required this.version,
     required this.onCheck,
     this.publications = const [],
+    this.loading = false,
+    this.onChooseExam,
+    this.onRetry,
     super.key,
   });
   final ResultVersion? version;
   final VoidCallback onCheck;
+  final VoidCallback? onChooseExam, onRetry;
+  final bool loading;
   final List<Publication> publications;
   @override
   Widget build(BuildContext context) {
     final v = version;
     if (v == null) {
       return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const Heading('Publication status', top: 0),
           Notice(
-            publications.isEmpty
+            loading
+                ? 'Loading official information'
+                : onChooseExam != null
+                ? 'Status unavailable'
+                : publications.isEmpty
                 ? 'Publication status unavailable'
                 : 'Checking status unavailable',
-            publications.isEmpty
+            loading
+                ? 'Retrieving available publications and validation metadata.'
+                : onChooseExam != null
+                ? 'Choose an exam and sitting to view its publication status.'
+                : publications.isEmpty
                 ? 'A successful source check is needed to establish whether results have been released.'
                 : 'An official announcement is available. Checking status could not be retrieved; you can open the source below.',
+            action: loading
+                ? const LinearProgressIndicator(
+                    semanticsLabel: 'Loading official information',
+                  )
+                : onChooseExam != null
+                ? FilledButton(
+                    onPressed: onChooseExam,
+                    child: const Text('Choose exam'),
+                  )
+                : onRetry != null
+                ? OutlinedButton(onPressed: onRetry, child: const Text('Retry'))
+                : null,
           ),
-          for (final publication in publications.take(1))
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const Heading('Source freshness'),
+          const Notice(
+            'Unknown',
+            'No source-check time is available for this selection.',
+            glyph: DesignGlyph.freshness,
+            announce: false,
+          ),
+          if (publications.firstOrNull case final publication?) ...[
+            const Heading('Official sources'),
             OfficialSourceLinks(
               publicationUrl: publication.url,
               documents: publication.documents,
             ),
+          ],
+          const SizedBox(height: 12),
+          const Notice(
+            'A published result and a name match are different.',
+            'A matching name does not confirm your identity.',
+            highlighted: true,
+            announce: false,
+          ),
         ],
       );
     }
@@ -47,10 +92,13 @@ class ResultsScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Heading('Publication status'),
+        const Heading('Publication status', top: 0),
         Notice(
           publicationLabel(v.state),
           explanation,
+          glyph: v.state == PublicationState.validationPending
+              ? DesignGlyph.freshness
+              : null,
           warning: v.state == PublicationState.superseded,
           action: v.state == PublicationState.checkingAvailable
               ? FilledButton(

@@ -102,7 +102,7 @@ class RecoveryListStore extends TestListStore {
 }
 
 void main() {
-  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+  setUp(() => FlutterSecureStorage.setMockInitialValues({'introSeen': 'true'}));
   testWidgets(
     'same-version revocation blocks saved reuse and resets active checking',
     (tester) async {
@@ -116,7 +116,13 @@ void main() {
       );
       await tester.pumpAndSettle();
       final refresh = tester
-          .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.refresh))
+          .widget<IconButton>(
+            find.byWidgetPredicate(
+              (widget) =>
+                  widget is IconButton &&
+                  widget.tooltip == 'Refresh available metadata',
+            ),
+          )
           .onPressed!;
       await tester.tap(find.text('Check name').last);
       await tester.pumpAndSettle();
@@ -235,12 +241,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Check name').last);
     await tester.pumpAndSettle();
-    expect(find.text('Choose an exam to check a name'), findsOneWidget);
+    expect(find.text('Choose an exam first'), findsOneWidget);
     expect(
-      tester.getTopLeft(find.text('Choose an exam to check a name')).dy,
+      tester.getTopLeft(find.text('Choose an exam first')).dy,
       lessThan(tester.getTopLeft(find.byType(TextFormField).first).dy),
     );
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Choose exam'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Choose exam'));
     await tester.pumpAndSettle();
     expect(find.text('Exam selection'), findsOneWidget);
   });
@@ -265,9 +271,11 @@ void main() {
         expect(find.text('Source information may be outdated'), findsOneWidget);
         expect(find.textContaining('UTC+08:00'), findsWidgets);
         expect(
-          tester.widget<OutlinedButton>(
-            find.widgetWithText(OutlinedButton, 'Open PRC publication'),
-          ).onPressed,
+          tester
+              .widget<OutlinedButton>(
+                find.widgetWithText(OutlinedButton, 'Open PRC publication'),
+              )
+              .onPressed,
           isNotNull,
         );
         if (state == PublicationState.checkingAvailable) {
@@ -288,7 +296,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Choose exam'));
+      final choose = find.widgetWithText(OutlinedButton, 'Choose exam');
+      await tester.ensureVisible(choose);
+      await tester.tap(choose);
       await tester.pumpAndSettle();
       await tester.tap(find.textContaining('TEST ONLY — Long'));
       await tester.pumpAndSettle();
@@ -296,6 +306,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.textContaining('Overseas'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('View updates'));
       await tester.tap(find.text('View updates'));
       await tester.pumpAndSettle();
       expect(
@@ -317,7 +328,7 @@ void main() {
     'settings privacy controls pass touch target and label guidelines',
     (tester) async {
       final semantics = tester.ensureSemantics();
-      await tester.pumpWidget(const ExamApp());
+      await tester.pumpWidget(ExamApp(listStore: TestListStore()));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Settings').last);
       await tester.pumpAndSettle();
@@ -334,6 +345,10 @@ void main() {
       await tester.tap(find.text('Settings').last);
       await tester.pumpAndSettle();
       final deletion = find.text('Delete server-side push preferences');
+      final privacy = find.text('Privacy and data');
+      await tester.ensureVisible(privacy);
+      await tester.tap(privacy);
+      await tester.pumpAndSettle();
       await tester.ensureVisible(deletion);
       await tester.tap(deletion);
       await tester.pumpAndSettle();

@@ -9,7 +9,6 @@ import 'package:app/storage/list_store.dart';
 import 'package:app/storage/private_store.dart';
 import 'package:app/ui/check_name.dart';
 import 'package:app/ui/shared.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -242,13 +241,26 @@ void main() {
       (tester) async {
         await app.main();
         await tester.pumpAndSettle();
-        final db = FirebaseFirestore.instance;
-        final repository = FirestoreExamRepository(db);
+        final repository = FirestoreExamRepository.fromEnvironment();
+        final db = repository.database;
         const selection = ExamSelection(
           'ocular-pharmacologists',
           'ocular-pharmacologists-2026-09-28',
           'all',
         );
+        final catalog = await repository.loadCatalog();
+        expect(catalog.any((exam) => exam.id == selection.examId), isTrue);
+        final sittings = await repository.loadSittings(selection.examId);
+        expect(
+          sittings.any(
+            (sitting) =>
+                sitting.id == selection.sittingId &&
+                sitting.categories.containsKey(selection.categoryId),
+          ),
+          isTrue,
+        );
+        final publications = await repository.loadPublications(selection);
+        expect(publications, isNotEmpty);
         final version = (await repository.loadResultVersion(selection))!;
         expect(version.state, PublicationState.checkingAvailable);
         expect(
@@ -264,6 +276,7 @@ void main() {
         final private = PrivateStore();
         final originalName = await private.readName();
         final originalSelection = await private.readSelection();
+        final originalIntroSeen = await private.readIntroSeen();
         final support = await getApplicationSupportDirectory();
         final requests = <Uri>[];
         CheckedList? checked;
@@ -296,6 +309,7 @@ void main() {
           final input = NameInput(parts.first, parts.last, '', '');
           await private.deleteName();
           await private.saveSelection(selection);
+          await private.markIntroSeen();
           await tester.pumpWidget(const SizedBox.shrink());
           await tester.pumpWidget(const app.ExamApp());
           await tester.pumpAndSettle();
@@ -409,7 +423,7 @@ void main() {
                 .id;
           }
           await checked.dispose();
-          await db.disableNetwork();
+          await db?.disableNetwork();
           final offlineRequests = <Uri>[];
           final offline = await HttpOverrides.runZoned(
             () async => ListStore().prepare(
@@ -472,7 +486,7 @@ void main() {
             }),
           );
         } finally {
-          await db.enableNetwork();
+          await db?.enableNetwork();
           await tester.pumpWidget(const SizedBox.shrink());
           await checked?.dispose();
           if (savedId != null) await store.deleteSaved(savedId);
@@ -485,6 +499,7 @@ void main() {
             await private.clearLocalValues();
             if (originalName != null) await private.saveName(originalName);
           }
+          if (!originalIntroSeen) await private.resetIntroSeen();
           await store.cleanupTemporary();
         }
       },

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="LaunchTheme" parent="LaunchTheme.Base">
+        <item name="android:windowSplashScreenBackground">@color/resview_launch_canvas</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/resview_splash</item>
+    </style>
+</resources>

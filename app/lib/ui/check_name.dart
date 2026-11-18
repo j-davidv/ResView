@@ -4,6 +4,7 @@ import '../domain/models.dart';
 import '../domain/matching_worker.dart';
 import '../storage/private_store.dart';
 import '../storage/list_store.dart';
+import 'design.dart';
 import 'shared.dart';
 
 class CheckNameScreen extends StatefulWidget {
@@ -34,6 +35,12 @@ class CheckNameScreen extends StatefulWidget {
 }
 
 class _CheckNameState extends State<CheckNameScreen> {
+  static const _labels = [
+    'Surname',
+    'Given names',
+    'Middle name (optional)',
+    'Suffix (optional)',
+  ];
   final _form = GlobalKey<FormState>();
   final _feedbackKey = GlobalKey();
   final _fields = List.generate(4, (_) => TextEditingController());
@@ -64,7 +71,6 @@ class _CheckNameState extends State<CheckNameScreen> {
           for (var i = 0; i < 4; i++) {
             _fields[i].text = values[i];
           }
-          _save = widget.initialDraft == null;
         });
       }
     } catch (_) {
@@ -122,7 +128,6 @@ class _CheckNameState extends State<CheckNameScreen> {
     try {
       await widget.store.saveName(_input);
       if (mounted) {
-        setState(() => _save = true);
         feedback(context, 'Name saved on this device.');
       }
     } catch (_) {
@@ -276,71 +281,72 @@ class _CheckNameState extends State<CheckNameScreen> {
           if (!allowed)
             Notice(
               !widget.hasSelection
-                  ? 'Choose an exam to check a name'
+                  ? 'Choose an exam first'
                   : 'Automatic name checking unavailable.',
               !widget.hasSelection
-                  ? 'Select an exam, sitting and category first. You can still save a name on this device.'
+                  ? 'A validated list is required for checking.'
                   : v?.state == PublicationState.superseded
                   ? 'This version is outdated. Use the latest publication.'
                   : 'A validated list for this sitting is required. You can still save a name on this device.',
-              action: !widget.hasSelection
+              warning: true,
+              action: !widget.hasSelection && widget.onChooseExam != null
                   ? OutlinedButton(
                       onPressed: widget.onChooseExam,
                       child: const Text('Choose exam'),
                     )
-                  : OutlinedButton(
+                  : widget.hasSelection && widget.onViewResults != null
+                  ? OutlinedButton(
                       onPressed: widget.onViewResults,
                       child: const Text('View results'),
-                    ),
+                    )
+                  : null,
             ),
           const Heading('Your name'),
-          const Text(
-            'Your name stays on this device. Enter it as recorded in your PRC application.',
-          ),
-          const SizedBox(height: 16),
+          const Text('Entered details stay on this device.'),
+          const SizedBox(height: 8),
           for (var i = 0; i < _fields.length; i++)
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: TextFormField(
-                controller: _fields[i],
-                enabled: !_busy,
-                textCapitalization: TextCapitalization.words,
-                autocorrect: false,
-                enableSuggestions: false,
-                textInputAction: i == 3
-                    ? TextInputAction.done
-                    : TextInputAction.next,
-                maxLines: null,
-                decoration: InputDecoration(
-                  labelText: [
-                    'Surname',
-                    'Given names',
-                    'Middle name',
-                    'Suffix',
-                  ][i],
-                  helperText: i >= 2 ? 'Optional' : null,
-                ),
-                validator: i < 2
-                    ? (value) => value == null || value.trim().isEmpty
-                          ? 'Enter ${i == 0 ? 'your surname' : 'your given names'}.'
-                          : null
-                    : null,
-                onChanged: (_) => _clearOutcome(),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ExcludeSemantics(
+                    child: Text(
+                      _labels[i],
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Semantics(
+                    label: _labels[i],
+                    child: TextFormField(
+                      controller: _fields[i],
+                      enabled: !_busy,
+                      textCapitalization: TextCapitalization.words,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      textInputAction: i == 3
+                          ? TextInputAction.done
+                          : TextInputAction.next,
+                      maxLines: null,
+                      decoration: const InputDecoration(),
+                      validator: i < 2
+                          ? (value) => value == null || value.trim().isEmpty
+                                ? 'Enter ${i == 0 ? 'your surname' : 'your given names'}.'
+                                : null
+                          : null,
+                      onChanged: (_) => _clearOutcome(),
+                    ),
+                  ),
+                ],
               ),
             ),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
             title: const Text('Save when I check'),
-            subtitle: const Text(
-              'Unchecking does not delete a previously saved name. Delete it in Settings.',
-            ),
             value: _save,
             onChanged: _busy ? null : (value) => setState(() => _save = value!),
-          ),
-          TextButton(
-            onPressed: _busy ? null : _saveName,
-            child: const Text('Save name now'),
           ),
           if (v != null) ...[
             FreshnessSection(v),
@@ -349,7 +355,7 @@ class _CheckNameState extends State<CheckNameScreen> {
                 'If you use a saved list offline, it may not include corrections that this device has not seen.',
               ),
             const Heading('List download'),
-            Text(
+            Metadata(
               v.namesBytes == null
                   ? 'Download size not yet confirmed.'
                   : '${(v.namesBytes! / (1024 * 1024)).toStringAsFixed(2)} MiB · Temporary unless you save it offline.',
@@ -371,15 +377,30 @@ class _CheckNameState extends State<CheckNameScreen> {
             const Text(
               'Leaving this screen cancels checking. Your unsaved name stays in memory for this session.',
             ),
-            OutlinedButton(
+            OutlinedButton.icon(
               onPressed: () => _cancel?.cancel(),
-              child: const Text('Cancel'),
+              icon: const DesignIcon(DesignGlyph.close),
+              label: const Text('Cancel'),
             ),
           ] else
-            FilledButton(
-              onPressed: allowed && v?.namesBytes != null ? _check : null,
-              child: const Text('Check name'),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: allowed && v?.namesBytes != null ? _check : null,
+                child: const Text('Check name'),
+              ),
             ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _busy ? null : _saveName,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
+              child: const Text('Save name now'),
+            ),
+          ),
           Column(
             key: _feedbackKey,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,7 +418,7 @@ class _CheckNameState extends State<CheckNameScreen> {
                     e.publishedName,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  Text(
+                  Metadata(
                     'Entry ${e.sequence} · Section ${e.sectionId} · PDF page ${e.physicalPage}',
                   ),
                   if (_message ==
@@ -409,18 +430,20 @@ class _CheckNameState extends State<CheckNameScreen> {
                   const Divider(),
                 ],
                 if (_checked?.document.componentsReliable == true)
-                  OutlinedButton(
+                  OutlinedButton.icon(
                     onPressed: _busy ? null : _showPossible,
-                    child: const Text('Show possible matches'),
+                    icon: const DesignIcon(DesignGlyph.checkName),
+                    label: const Text('Show possible matches'),
                   )
                 else
                   const Text(
                     'Possible matching is not supported for this list format. Inspect the official list.',
                   ),
                 if (_checked != null)
-                  OutlinedButton(
+                  OutlinedButton.icon(
                     onPressed: _checked!.alreadySaved ? null : _saveList,
-                    child: Text(
+                    icon: const DesignIcon(DesignGlyph.saveOffline),
+                    label: Text(
                       _checked!.alreadySaved
                           ? 'List saved offline'
                           : 'Save list offline',

@@ -1,13 +1,13 @@
 # PRC Exam Updates Android design
 
-Approved Impeccable UI/UX proposal, 14 October 2026. The spec governs product truth; this file records the approved visual rules.
+Visual design follows the team's green ResView handoff. The product spec governs exam data, privacy, and availability.
 
 ## Visual rules
 
-- Native Material 3, system light/dark theme, static deep teal seed. Semantic ColorScheme roles throughout; no dynamic-color dependency.
-- Roboto / Material text roles: titleLarge 22, titleMedium 18, bodyLarge 16, bodyMedium 16, bodySmall 14. Honor the system TextScaler without clamping.
-- 4 dp spacing rhythm, 16 dp phone gutters, 8 dp between related controls, 24 dp between sections. Content determines height.
-- Flat lists and dividers, modest tonal sections, restrained elevation. No artwork, government seals, decorative gradients, invented statistics, or demo branding.
+- Native Material 3 with the handoff's light and dark colors, botanical green header, and off-white or dark canvas. Use the bundled Inter font and Iconify Material Symbols outlined assets.
+- Set screen titles at 28/34, app-bar titles at 22/28, section titles at 18/24, body at 16/24, metadata at 14/20, and navigation labels at 12/16. Honor the system TextScaler without clamping.
+- Use 20 dp phone gutters and the welcome screen's 24 dp gutter. Use 16 dp card padding, 24 dp between sections, 12 dp card corners, 8 dp control corners, and 24 dp sheet corners. Content determines height.
+- Show the supplied RV mark during launch and first-use welcome. Keep the welcome visible until the user chooses or skips. Restore the exact saved exam identity when available, and show loading, unavailable and retry states in the main shell.
 - Four always-labeled destinations: Updates, Results, Check name, Settings. Material NavigationBar on compact widths, labeled NavigationRail at expanded widths. Navigation labels wrap at large text.
 - Exam context is visible and wraps: exam, sitting dates, explicit Domestic/Special/Overseas type, location, applicable category, Change action.
 - Publication state, source freshness, and personal outcome occupy distinct sections. Neutral exact-match presentation; no celebration, pass/fail inference, or identity claim.
@@ -23,7 +23,7 @@ Approved Impeccable UI/UX proposal, 14 October 2026. The spec governs product tr
 
 ## Screens and interactions
 
-Selection uses searchable official exam choices, concrete sitting selection (date range filters, never merges sittings), and applicable category. No mandatory name or consent. Updates lists actual official titles and sources. Results leads with the five publication states and provenance. Check name has surname/given/middle/suffix, optional unchecked name saving, download-size disclosure, cancel, exact outcomes, supported possible matches, and explicit offline save. Settings separates local name, push consent, independent email signup/unsubscribe, saved lists, privacy and scoped deletion.
+Selection uses searchable official exam choices, concrete sitting selection (date range filters, never merges sittings), and applicable category. No mandatory name or consent. Updates lists actual official titles and sources. Results has separate publication status, freshness, and official source sections. Check name has surname/given/middle/suffix, optional unchecked name saving, download-size disclosure, cancel, exact outcomes, supported possible matches, and explicit offline save. Settings groups the exam, device data, alerts, and privacy actions. Detail pages retain local name, independent email signup/unsubscribe, saved lists, and scoped deletion.
 
 ## Existing plan and verification mapping
 
