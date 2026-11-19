@@ -1,34 +1,24 @@
-name: Release 2 PRC reachability
+name: Release 2 PRC hosted dry run
 on:
   push:
     branches: [release-2-hosted-check]
-    paths: [.github/workflows/release-2-hosted-check.yml]
+    paths: [.github/workflows/release-2-hosted-check.yml, 'worker/**']
 
 permissions:
   contents: read
 
 jobs:
   source:
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 4
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          from worker.source import SourcePolicy, fetch
-          root = 'https://www.prc.gov.ph'
-          policy_config = json.loads(Path('worker/config.json').read_text())['sourcePolicy']
-          routes = ['/archives/2026', '/archives/2026/202607']
-          policy_config.setdefault('exactRoutes', {}).setdefault('www.prc.gov.ph', []).extend(routes)
-          policy = SourcePolicy(policy_config)
-
-          def bounded(url, policy, *, limit):
-              return fetch(url, policy, limit=limit, budget=20)
-
-          policy.load_robots(bounded)
-          for route in [*routes, '/article/rescheduling-landscape-architects-licensure-examination']:
-              body = bounded(root + route, policy, limit=2 * 1024 * 1024)
-              print(route, len(body), flush=True)
-          PY
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: pip install -r worker/requirements.txt
+      - run: python -m unittest worker.tests.test_exam_history -v
+      - name: Scan the PRC archives from Supabase without publishing
+        env:
+          PRC_ARCHIVE_TOKEN: ${{ secrets.PRC_ARCHIVE_TOKEN }}
+        run: python -m worker.exam_history --hosted-source --cache runtime/history-cache

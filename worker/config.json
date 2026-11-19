@@ -3,6 +3,7 @@
   "sourcePolicy": {
     "driveApi": true,
     "accessAuthorization": "Owner instructed public PRC access on 2026-10-15 without a separate permission approval.",
+    "exactRoutes": {"www.prc.gov.ph": ["/archives/2026", "/archives/2026/202607"]},
     "routes": {
       "www.prc.gov.ph": [
         "/robots.txt",
@@ -23,6 +24,64 @@
         "/{year}-schedule-examination"
       ]
     }
+  },
+  "advisoryPilot": {
+    "yearUrl": "https://www.prc.gov.ph/archives/2026",
+    "monthUrl": "https://www.prc.gov.ph/archives/2026/202607",
+    "catalogUrl": "https://www.prc.gov.ph/2026-schedule-examination",
+    "coverageStartUtc": "2026-06-30T16:00:00+00:00",
+    "coverageEndUtc": "2026-07-31T16:00:00+00:00",
+    "scopes": [
+      {
+        "selection": {
+          "examId": "landscape-architects",
+          "sittingId": "landscape-architects-2026-07-14",
+          "categoryId": "all"
+        },
+        "start": "2026-07-14",
+        "centers": "NCR and Cebu"
+      },
+      {
+        "selection": {
+          "examId": "master-plumbers",
+          "sittingId": "master-plumbers-2026-07-11",
+          "categoryId": "all"
+        },
+        "start": "2026-07-11",
+        "centers": "NCR, Baguio, Butuan, Cagayan de Oro, Cebu, Davao, Iloilo, Koronadal, Legazpi, Lucena, Pagadian, Rosales, Tacloban, and Tuguegarao"
+      }
+    ],
+    "articles": {
+      "https://www.prc.gov.ph/article/notice-public-4": {
+        "contentSha256": "195e78d89116d759715aaefcc6e638315d67009957f83447818842a02ac78648",
+        "selections": []
+      },
+      "https://www.prc.gov.ph/article/notice-public-3": {
+        "contentSha256": "793aa958b563bc467796ee0796953ff583fb47a33e359b3a7b3370d876868c23",
+        "selections": []
+      },
+      "https://www.prc.gov.ph/article/rescheduling-landscape-architects-licensure-examination": {
+        "contentSha256": "1cb8481624b59516201cad853b63092ca20b16caadd996f058817701ec5bc4d2",
+        "selections": [
+          {
+            "examId": "landscape-architects",
+            "sittingId": "landscape-architects-2026-07-14",
+            "categoryId": "all"
+          }
+        ]
+      },
+      "https://www.prc.gov.ph/article/removing-manual-drawing-component-landscape-architects-licensure-examination-lale-and": {
+        "contentSha256": "547c37b49c38f7d6fa372b29a86f44b57d4fe9e27b85f17aa06859dff5ea770f",
+        "selections": [
+          {
+            "examId": "landscape-architects",
+            "sittingId": "landscape-architects-2026-07-14",
+            "categoryId": "all"
+          }
+        ]
+      }
+    },
+    "otherEntriesSha256": "b8690658846445542c4576385fd80b976153a6e4c28fd7fd8c4a69be0d7eb6b3"
   },
   "resultsUrl": "https://www.prc.gov.ph/articles/exam-results",
   "profiles": {},
