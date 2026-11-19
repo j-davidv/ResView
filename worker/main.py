@@ -10,6 +10,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urljoin, urlsplit
 
+from worker import advisories
 from worker.extract import extract_pdf, write_names_file
 from worker.documents import fetch_pdf
 from worker.publish import publish_validated
@@ -187,10 +188,26 @@ def run(config, providers, now, fetcher=fetch):
     return failures
 
 
+def run_advisories(config, providers, now, fetcher=fetch):
+    pilot = config['advisoryPilot']
+    policy = SourcePolicy(config['sourcePolicy'])
+    try:
+        policy.load_robots(fetcher)
+        feeds = advisories.scan(config, policy, now, fetcher)
+        providers.advisory_snapshots(pilot, feeds, now)
+    except (ValueError, OSError, http.client.HTTPException) as error:
+        log_failure('Advisory scan incomplete', error)
+        review = error if isinstance(error, advisories.AdvisoryReview) else None
+        providers.advisory_snapshots(pilot, None, now, review=review)
+        return 1
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description='Fetch reviewed PRC publications; names remain on-device.')
     parser.add_argument('--config', required=True, type=Path)
     parser.add_argument('--live-sources', action='store_true')
+    parser.add_argument('--advisories-only', action='store_true')
     parser.add_argument('--delivery', choices=['disabled'], default='disabled')
     args = parser.parse_args()
     try:
@@ -204,7 +221,12 @@ def main():
         if not args.live_sources:
             raise SourceError('Use --live-sources explicitly; there is no demo fallback.')
         from worker.providers import Providers
-        return 1 if run(config, Providers.from_environment(), datetime.now(timezone.utc)) else 0
+        if args.advisories_only and (os.environ.get('FIRESTORE_EMULATOR_HOST', '').split(':')[0] not in
+                                     ('localhost', '127.0.0.1') or
+                                     os.environ.get('FIREBASE_PROJECT_ID') != 'demo-resview-advisories'):
+            raise SourceError('The advisory pilot is qualified for the local demo project only.')
+        operation = run_advisories if args.advisories_only else run
+        return 1 if operation(config, Providers.from_environment(), datetime.now(timezone.utc)) else 0
     except Exception as error:
         log_failure('Worker failed', error)
         return 1
