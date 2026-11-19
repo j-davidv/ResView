@@ -15,7 +15,10 @@ class FirestoreExamRepository implements ExamRepository {
     if (Firebase.apps.isNotEmpty) {
       return FirestoreExamRepository(FirebaseFirestore.instance);
     }
-    const project = String.fromEnvironment('FIRESTORE_PUBLIC_PROJECT_ID');
+    const project = String.fromEnvironment(
+      'FIRESTORE_PUBLIC_PROJECT_ID',
+      defaultValue: 'resview-9240c',
+    );
     return project.isEmpty
         ? FirestoreExamRepository(null)
         : FirestoreExamRepository.public(project);
@@ -126,6 +129,16 @@ class FirestoreExamRepository implements ExamRepository {
         documents: successfulExamineeLinks(j),
       );
     }).toList();
+  }
+
+  @override
+  Future<AdvisoryFeed?> loadAdvisories(String examId) async {
+    if (!RegExp(r'^[a-zA-Z0-9_-]{1,180}$').hasMatch(examId)) {
+      throw const FormatException('Invalid exam identifier.');
+    }
+    final fields = await _getDocument('examUpdates/$examId');
+    if (fields == null || fields['retired'] == true) return null;
+    return AdvisoryFeed.fromJson(fields);
   }
 
   @override

@@ -10,6 +10,8 @@ class SelectionRepository implements ExamRepository {
   final List<Map<String, String>> categories;
 
   @override
+  Future<AdvisoryFeed?> loadAdvisories(String examId) async => null;
+  @override
   Future<List<Exam>> loadCatalog() async => [Exam('test-exam', title)];
 
   @override
@@ -76,7 +78,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Category'), findsNothing);
         expect(find.text('Only group'), findsNothing);
-        await tester.tap(find.text('View updates'));
+        await tester.tap(find.text('View results'));
         expect(
           selected?.selection,
           ExamSelection('test-exam', sitting.id, category),
@@ -117,7 +119,7 @@ void main() {
       expect(find.text(prompt), findsOneWidget);
       await tester.tap(find.text('Secondary'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('View updates'));
+      await tester.tap(find.text('View results'));
       expect(selected?.categoryId, 'secondary');
       expect(selected?.details, '${sittings.first.label}\nSecondary');
 
@@ -128,7 +130,7 @@ void main() {
       await tester.tap(find.text(sittings.last.label));
       await tester.pumpAndSettle();
       expect(find.text(label), findsNothing);
-      await tester.tap(find.text('View updates'));
+      await tester.tap(find.text('View results'));
       expect(selected?.categoryId, 'all');
       expect(selected?.details, sittings.last.label);
 

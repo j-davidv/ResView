@@ -113,7 +113,7 @@ class _ExamSelectionState extends State<ExamSelectionScreen> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       const Heading('Choose your exam', top: 0),
-      const Text('Browse official announcements. No signup required.'),
+      const Text('Choose a sitting to see its official results.'),
       const SizedBox(height: 16),
       if (_busy)
         const LinearProgressIndicator(semanticsLabel: 'Loading exam catalog'),
@@ -217,7 +217,7 @@ class _ExamSelectionState extends State<ExamSelectionScreen> {
                   SelectedExam(_exam!, _sitting!, _category!),
                 ),
           child: Text(
-            widget.current == null ? 'View updates' : 'Apply selection',
+            widget.current == null ? 'View results' : 'Apply selection',
           ),
         ),
       ],

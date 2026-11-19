@@ -9,12 +9,11 @@ class ResultsScreen extends StatelessWidget {
     required this.version,
     this.publications = const [],
     this.loading = false,
-    this.onChooseExam,
     this.onRetry,
     super.key,
   });
   final ResultVersion? version;
-  final VoidCallback? onChooseExam, onRetry;
+  final VoidCallback? onRetry;
   final bool loading;
   final List<Publication> publications;
 
@@ -26,7 +25,7 @@ class ResultsScreen extends StatelessWidget {
         (current != null && current.state != PublicationState.notReleased);
     final title = loading
         ? 'Loading official information'
-        : onChooseExam != null || (current == null && !released)
+        : current == null && !released
         ? 'Publication status unavailable'
         : released
         ? current?.state == PublicationState.superseded
@@ -35,8 +34,6 @@ class ResultsScreen extends StatelessWidget {
         : 'Not released';
     final message = loading
         ? 'Retrieving official announcements and result links.'
-        : onChooseExam != null
-        ? 'Choose an exam and sitting to view its results.'
         : released
         ? 'Open the official PRC publication or successful-examinee list below.'
         : current == null
@@ -54,24 +51,11 @@ class ResultsScreen extends StatelessWidget {
               ? const LinearProgressIndicator(
                   semanticsLabel: 'Loading official information',
                 )
-              : onChooseExam != null
-              ? FilledButton(
-                  onPressed: onChooseExam,
-                  child: const Text('Choose exam'),
-                )
               : onRetry != null
               ? OutlinedButton(onPressed: onRetry, child: const Text('Retry'))
               : null,
         ),
-        if (current != null)
-          SourceLinks(current, publications: publications)
-        else if (publications.firstOrNull case final publication?) ...[
-          const Heading('Official sources'),
-          OfficialSourceLinks(
-            publicationUrl: publication.url,
-            documents: publication.documents,
-          ),
-        ],
+        SourceLinks(current, publications: publications),
       ],
     );
   }

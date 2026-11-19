@@ -155,3 +155,88 @@ Uri publicUrl(String value) {
   }
   return uri;
 }
+
+typedef ExamUpdate = ({
+  String title,
+  Uri url,
+  DateTime posted,
+  String audience,
+});
+
+class AdvisoryFeed {
+  const AdvisoryFeed._(
+    this.start,
+    this.end,
+    this.lastCheck,
+    this.stale,
+    this.notices,
+  );
+  final DateTime start, end;
+  final DateTime? lastCheck;
+  final bool stale;
+  final List<ExamUpdate> notices;
+  static const maxAge = Duration(hours: 36);
+
+  factory AdvisoryFeed.fromJson(Map<String, dynamic> data) {
+    DateTime utc(Object? value) {
+      if (value is! String ||
+          !RegExp(
+            r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|\+00:00)$',
+          ).hasMatch(value)) {
+        throw const FormatException('Missing UTC timestamp.');
+      }
+      final date = DateTime.parse(value).toUtc();
+      if (!value.startsWith(date.toIso8601String().substring(0, 19))) {
+        throw const FormatException('Invalid UTC timestamp.');
+      }
+      return date;
+    }
+
+    final start = utc(data['coverageStartUtc']),
+        end = utc(data['coverageEndUtc']);
+    final last = data['lastSuccessfulCheckUtc'] == null
+        ? null
+        : utc(data['lastSuccessfulCheckUtc']);
+    final raw = data['notices'];
+    final freshness = data['freshness'];
+    if (!start.isBefore(end) ||
+        !['fresh', 'stale'].contains(freshness) ||
+        raw is! List ||
+        start.isBefore(DateTime.utc(2025, 12, 31, 16)) ||
+        (last == null && (freshness == 'fresh' || raw.isNotEmpty))) {
+      throw const FormatException('Invalid advisory coverage.');
+    }
+    final notices = <ExamUpdate>[];
+    for (final item in raw) {
+      if (item is! Map ||
+          item['kind'] != 'announcement' ||
+          item['title'] is! String ||
+          (item['title'] as String).trim().isEmpty ||
+          item['publicationUrl'] is! String) {
+        throw const FormatException('Invalid exam update.');
+      }
+      final url = publicUrl(item['publicationUrl']);
+      final posted = utc(item['publishedAtUtc']);
+      if (!{'www.prc.gov.ph', 'prc.gov.ph'}.contains(url.host) ||
+          url.port != 443 ||
+          !RegExp(
+            r'^/(?:(?:index\.php/)?article/[^/]+|prc-(?:resolution|memorandum-circular)-no-[0-9]+[a-z]?-s-20[0-9]{2}(?:-[0-9]+)?)$',
+          ).hasMatch(url.path) ||
+          url.hasQuery ||
+          url.hasFragment ||
+          posted.isBefore(start) ||
+          !posted.isBefore(end)) {
+        throw const FormatException('Unconfirmed notice source or date.');
+      }
+      final audience = item['audience'] ?? '';
+      if (audience is! String) throw const FormatException('Invalid audience.');
+      notices.add((
+        title: item['title'] as String,
+        url: url,
+        posted: posted,
+        audience: audience,
+      ));
+    }
+    return AdvisoryFeed._(start, end, last, freshness == 'stale', notices);
+  }
+}

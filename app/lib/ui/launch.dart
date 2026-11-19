@@ -4,7 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import 'design.dart';
 
-const _subtitle = 'PRC exam updates';
+const _subtitle = 'PRC exam results';
 const _disclosure = 'Independent app. Not affiliated with PRC.';
 const _introGutter = 24.0;
 
@@ -105,6 +105,7 @@ class LaunchScreen extends StatelessWidget {
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({
     required this.onChoose,
+    this.advisoryPilot = false,
     required this.onSkip,
     required this.busy,
     this.error,
@@ -112,7 +113,7 @@ class WelcomeScreen extends StatelessWidget {
   });
 
   final VoidCallback onChoose, onSkip;
-  final bool busy;
+  final bool busy, advisoryPilot;
   final String? error;
 
   @override
@@ -123,16 +124,18 @@ class WelcomeScreen extends StatelessWidget {
     final compact =
         MediaQuery.sizeOf(context).height < 500 ||
         MediaQuery.textScalerOf(context).scale(28) > 40;
-    const introSteps = [
+    final introSteps = [
       (
         DesignGlyph.exam,
         '1. Choose your exam',
         'Select your exam, sitting and category. Domestic, special and overseas sittings are listed separately.',
       ),
       (
-        DesignGlyph.updates,
-        '2. Follow official updates',
-        'Read announcements and publication status in Updates and Results. Open the linked PRC source for details.',
+        DesignGlyph.results,
+        '2. Check Results',
+        advisoryPilot
+            ? 'Check Results for official releases. Updates shows PRC announcements for your exam from 2026 onward.'
+            : 'See whether PRC has released results for your sitting. Open a publication to read the official announcement.',
       ),
       (
         DesignGlyph.externalLink,

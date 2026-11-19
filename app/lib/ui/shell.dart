@@ -11,6 +11,7 @@ class ExamShell extends StatelessWidget {
     required this.onNavigate,
     required this.onChoose,
     required this.child,
+    this.advisoryPilot = false,
     this.examTitle,
     this.examDetails,
     this.restoringSelection = false,
@@ -19,10 +20,15 @@ class ExamShell extends StatelessWidget {
     super.key,
   });
 
-  static const _titles = ['Updates', 'Results', 'Settings'];
-  static const _glyphs = [
-    DesignGlyph.updates,
+  final bool advisoryPilot;
+  List<String> get _titles => [
+    'Results',
+    if (advisoryPilot) 'Updates',
+    'Settings',
+  ];
+  List<DesignGlyph> get _glyphs => [
     DesignGlyph.results,
+    if (advisoryPilot) DesignGlyph.updates,
     DesignGlyph.settings,
   ];
 
@@ -47,16 +53,15 @@ class ExamShell extends StatelessWidget {
           scaler.scale(28) > 40 ||
           MediaQuery.viewInsetsOf(context).bottom > 0;
       final title = _titles[destination];
-      final showContext = destination != 2 && !restoringSelection;
+      final settings = destination == _titles.length - 1;
+      final showContext = !settings && !restoringSelection;
       final contextCard = ExamContextCard(
         title: examTitle,
         details: examDetails,
         onChoose: onChoose,
-        description: switch (destination) {
-          1 =>
-            'Choose an exam and sitting to view results and other information.',
-          _ => null,
-        },
+        description: destination == 0
+            ? 'Choose an exam and sitting to view its results.'
+            : 'Choose an exam and sitting to check for schedule changes.',
       );
       final refresh = IconButton(
         tooltip: 'Refresh available metadata',
@@ -152,7 +157,7 @@ class ExamShell extends StatelessWidget {
                                               if (canRefresh) refresh,
                                             ],
                                           ),
-                                          if (destination == 3) ...[
+                                          if (settings) ...[
                                             const SizedBox(height: 4),
                                             Text(
                                               'Privacy and preferences',
@@ -161,7 +166,8 @@ class ExamShell extends StatelessWidget {
                                                     color: headerSecondary,
                                                   ),
                                             ),
-                                          ] else if (showContext) ...[
+                                          ] else if (showContext &&
+                                              examTitle != null) ...[
                                             const SizedBox(height: 16),
                                             contextCard,
                                           ],
@@ -175,7 +181,8 @@ class ExamShell extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  if (compact && showContext) ...[
+                                  if (showContext &&
+                                      (compact || examTitle == null)) ...[
                                     contextCard,
                                     const SizedBox(height: 16),
                                   ],

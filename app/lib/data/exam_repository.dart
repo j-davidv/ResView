@@ -4,6 +4,7 @@ abstract class ExamRepository {
   Future<List<Exam>> loadCatalog();
   Future<List<Sitting>> loadSittings(String examId);
   Future<List<Publication>> loadPublications(ExamSelection selection);
+  Future<AdvisoryFeed?> loadAdvisories(String examId);
   Future<ResultVersion?> loadResultVersion(ExamSelection selection);
 }
 

@@ -133,43 +133,101 @@ class Metadata extends StatelessWidget {
   }
 }
 
+Uri _articleIdentity(Uri uri) {
+  if (uri.host != 'prc.gov.ph' && uri.host != 'www.prc.gov.ph') return uri;
+  return uri.replace(
+    host: 'www.prc.gov.ph',
+    path: uri.path.startsWith('/index.php/article/')
+        ? uri.path.replaceFirst('/index.php', '')
+        : uri.path,
+  );
+}
+
 class SourceLinks extends StatelessWidget {
   const SourceLinks(this.version, {this.publications = const [], super.key});
-  final ResultVersion version;
+  final ResultVersion? version;
   final List<Publication> publications;
+
   @override
   Widget build(BuildContext context) {
-    Uri identity(Uri uri) {
-      if (uri.host != 'prc.gov.ph' && uri.host != 'www.prc.gov.ph') return uri;
-      return uri.replace(
-        host: 'www.prc.gov.ph',
-        path: uri.path.startsWith('/index.php/article/')
-            ? uri.path.replaceFirst('/index.php', '')
-            : uri.path,
-      );
+    final history = <Uri, List<Publication>>{};
+    for (final article in publications) {
+      (history[_articleIdentity(article.url)] ??= []).add(article);
     }
-
-    final publication = publications
-        .where(
-          (p) =>
-              version.publicationUrl != null &&
-              identity(p.url) == identity(version.publicationUrl!),
-        )
-        .firstOrNull;
-    final links = <Uri, String>{...?publication?.documents};
-    if (links.isEmpty && version.documentUrl != null) {
-      links[version.documentUrl!] = 'successful-examinee list';
-    }
+    final url = version?.publicationUrl;
+    final featured = history.remove(
+      url == null ? history.keys.firstOrNull : _articleIdentity(url),
+    );
+    final document = version?.documentUrl;
+    final separateList =
+        url == null &&
+        document != null &&
+        !publications.any((article) => article.documents.containsKey(document));
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (links.isNotEmpty || version.publicationUrl != null)
+        if (featured != null || url != null) ...[
           const Heading('Official sources'),
-        OfficialSourceLinks(
-          publicationUrl: version.publicationUrl,
-          documents: links,
-        ),
+          _article(
+            context,
+            featured ?? const [],
+            url: url,
+            fallback: url != null ? document : null,
+          ),
+        ],
+        if (separateList) ...[
+          Heading(
+            featured == null ? 'Official sources' : 'Additional official list',
+          ),
+          OfficialSourceLinks(
+            documents: {document: 'successful-examinee list'},
+          ),
+        ],
+        if (history.isNotEmpty) ...[
+          const Heading('Other result publications'),
+          for (final article in history.values) _article(context, article),
+        ],
       ],
+    );
+  }
+
+  Widget _article(
+    BuildContext context,
+    List<Publication> records, {
+    Uri? url,
+    Uri? fallback,
+  }) {
+    final article = records.firstOrNull;
+    final documents = <Uri, String>{};
+    for (final record in records) {
+      for (final link in record.documents.entries) {
+        documents.putIfAbsent(link.key, () => link.value);
+      }
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DesignCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (article != null) ...[
+              Text(
+                article.title,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 4),
+              Metadata('Published: ${sourceTime(article.publishedAtUtc)}'),
+              const SizedBox(height: 8),
+            ],
+            OfficialSourceLinks(
+              publicationUrl: url ?? article?.url,
+              documents: documents.isEmpty && fallback != null
+                  ? {fallback: 'successful-examinee list'}
+                  : documents,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -188,32 +246,71 @@ class OfficialSourceLinks extends StatelessWidget {
     children: [
       for (final (index, entry) in documents.entries.indexed)
         SourceButton(
-          'Open ${entry.value}${entry.value == 'successful-examinee list' && documents.length > 1 ? ' ${index + 1}' : ''}',
+          '${entry.value == 'successful-examinee list' ? 'View list of passers' : 'Open ${entry.value}'}${entry.value == 'successful-examinee list' && documents.length > 1 ? ' ${index + 1}' : ''}',
           entry.key,
+          filled: true,
         ),
       if (publicationUrl != null)
-        SourceButton('Open PRC publication', publicationUrl!),
+        SourceButton('PRC announcement', publicationUrl!),
     ],
   );
 }
 
 class SourceButton extends StatelessWidget {
-  const SourceButton(this.label, this.uri, {super.key});
+  const SourceButton(this.label, this.uri, {this.filled = false, super.key});
   final String label;
   final Uri uri;
+  final bool filled;
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        shape: const StadiumBorder(),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final style = ButtonStyle(
+      minimumSize: const WidgetStatePropertyAll(Size.fromHeight(48)),
+      shape: const WidgetStatePropertyAll(
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(13)),
+        ),
       ),
-      onPressed: () => openSource(context, uri),
-      icon: const DesignIcon(DesignGlyph.externalLink),
-      label: Text(label),
-    ),
-  );
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      ),
+      textStyle: WidgetStatePropertyAll(theme.textTheme.labelLarge),
+    );
+    final content = Row(
+      children: [
+        DesignIcon(
+          filled ? DesignGlyph.listChecks : DesignGlyph.document,
+          size: 22,
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Text(label)),
+        const SizedBox(width: 10),
+        const DesignIcon(DesignGlyph.externalLink, size: 22),
+      ],
+    );
+    void open() => openSource(context, uri);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: filled
+          ? FilledButton(onPressed: open, style: style, child: content)
+          : OutlinedButton(
+              onPressed: open,
+              style: style.copyWith(
+                foregroundColor: WidgetStatePropertyAll(colors.primary),
+                side: WidgetStateProperty.resolveWith(
+                  (states) => BorderSide(
+                    color: states.contains(WidgetState.focused)
+                        ? colors.primary
+                        : colors.primary.withValues(alpha: 0.4),
+                    width: states.contains(WidgetState.focused) ? 2 : 1,
+                  ),
+                ),
+              ),
+              child: content,
+            ),
+    );
+  }
 }
 
 Future<void> openSource(

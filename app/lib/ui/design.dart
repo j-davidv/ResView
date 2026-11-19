@@ -241,6 +241,8 @@ enum DesignGlyph {
   next('chevron-right', directional: true),
   back('arrow-back', directional: true),
   externalLink('open-in-new'),
+  document('document-outline'),
+  listChecks('list-checks'),
   copyLink('content-copy'),
   saveName('save-outline'),
   close('close'),

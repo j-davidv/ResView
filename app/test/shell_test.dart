@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app/main.dart';
+import 'package:app/data/firestore_repository.dart';
 
 import 'flows_test.dart' show TestListStore;
 
@@ -14,7 +15,12 @@ void main() {
     const storage = FlutterSecureStorage();
     for (final action in ['Choose my exam', 'Skip introduction']) {
       FlutterSecureStorage.setMockInitialValues({});
-      await tester.pumpWidget(ExamApp(listStore: TestListStore()));
+      await tester.pumpWidget(
+        ExamApp(
+          repository: FirestoreExamRepository(null),
+          listStore: TestListStore(),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('How ResView works'), findsOneWidget);
       expect(await storage.read(key: 'introSeen'), isNull);
@@ -29,23 +35,37 @@ void main() {
         await tester.tap(find.byTooltip('Back'));
         await tester.pumpAndSettle();
       }
-      expect(find.text('Exam catalog unavailable'), findsOneWidget);
+      expect(find.text('Choose exam'), findsOneWidget);
+      expect(find.text('Updates'), findsOneWidget);
+      expect(find.text('Results'), findsWidgets);
       await tester.pumpWidget(const SizedBox.shrink());
     }
     await tester.pumpWidget(ExamApp(listStore: TestListStore()));
     await tester.pumpAndSettle();
     expect(find.text('How ResView works'), findsNothing);
-    expect(find.text('Exam catalog unavailable'), findsOneWidget);
+    expect(find.text('Choose exam'), findsOneWidget);
+    expect(find.text('Updates'), findsOneWidget);
+    expect(find.text('Results'), findsWidgets);
   });
 
   testWidgets(
     'unconfigured runtime offers browsing and settings without fictional content',
     (tester) async {
-      await tester.pumpWidget(ExamApp(listStore: TestListStore()));
+      await tester.pumpWidget(
+        ExamApp(
+          repository: FirestoreExamRepository(null),
+          listStore: TestListStore(),
+        ),
+      );
       await tester.pumpAndSettle();
-      expect(find.text('Choose your exam'), findsOneWidget);
+      expect(find.text('Results released'), findsNothing);
+      expect(find.text('Not released'), findsNothing);
+      await tester.tap(find.text('Choose exam'));
+      await tester.pumpAndSettle();
       expect(find.text('Exam catalog unavailable'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
       expect(find.text('Sign up'), findsNothing);
       expect(find.textContaining('Demo data'), findsNothing);
       await tester.tap(find.text('Settings').last);
@@ -80,7 +100,7 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-  testWidgets('large-text landscape keeps all three destinations usable', (
+  testWidgets('large-text landscape keeps all destinations usable', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(800, 360);
@@ -91,13 +111,14 @@ void main() {
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     await tester.pumpWidget(ExamApp(listStore: TestListStore()));
     await tester.pumpAndSettle();
-    for (final title in ['Results', 'Settings', 'Updates']) {
+    for (final title in ['Updates', 'Settings', 'Results']) {
       final tab = find.text(title).last;
       await tester.ensureVisible(tab);
       await tester.tap(tab);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     }
-    expect(find.text('Check name'), findsNothing);
+    expect(find.text('Updates'), findsOneWidget);
+    expect(find.text('Choose exam'), findsOneWidget);
   });
 }

@@ -42,7 +42,16 @@ Future<void> main() async {
 }
 
 class ExamApp extends StatelessWidget {
-  const ExamApp({this.repository, this.listStore, super.key});
+  const ExamApp({
+    this.repository,
+    this.listStore,
+    this.advisoryPilot = const bool.fromEnvironment(
+      'RESVIEW_EXAM_UPDATES',
+      defaultValue: true,
+    ),
+    super.key,
+  });
+  final bool advisoryPilot;
   final ExamRepository? repository;
   final ListStore? listStore;
   @override
@@ -54,13 +63,19 @@ class ExamApp extends StatelessWidget {
     themeMode: ThemeMode.system,
     home: _ExamHome(
       lists: listStore,
+      advisoryPilot: advisoryPilot,
       repository: repository ?? FirestoreExamRepository.fromEnvironment(),
     ),
   );
 }
 
 class _ExamHome extends StatefulWidget {
-  const _ExamHome({required this.repository, this.lists});
+  const _ExamHome({
+    required this.repository,
+    required this.advisoryPilot,
+    this.lists,
+  });
+  final bool advisoryPilot;
   final ExamRepository repository;
   final ListStore? lists;
   @override
@@ -72,6 +87,9 @@ class _ExamHomeState extends State<_ExamHome> {
   late final _lists = widget.lists ?? ListStore();
   late final _push = PushPreferences(store: _store);
   int _destination = 0, _generation = 0;
+  int _advisoryRevision = 0;
+  bool get _inUpdates => widget.advisoryPilot && _destination == 1;
+  bool get _inSettings => _destination == (widget.advisoryPilot ? 2 : 1);
   SelectedExam? _selected;
   ResultVersion? _version;
   List<Publication> _publications = [];
@@ -234,6 +252,7 @@ class _ExamHomeState extends State<_ExamHome> {
   Future<void> _select(SelectedExam selected) async {
     final generation = ++_generation;
     setState(() {
+      if (_selected == null) _destination = 0;
       _selected = selected;
       _version = null;
       _publications = [];
@@ -263,41 +282,32 @@ class _ExamHomeState extends State<_ExamHome> {
       _loading = true;
       _failed = false;
     });
+    bool current() => mounted && generation == _generation;
     try {
-      final publications = await widget.repository.loadPublications(selection);
-      if (!mounted || generation != _generation) return;
-      setState(() => _publications = publications);
-      final version = await widget.repository.loadResultVersion(selection);
-      if (mounted && generation == _generation) {
-        setState(() => _version = version);
+      final (publications, version) = await (
+        widget.repository.loadPublications(selection).then((items) {
+          if (current() && items.isNotEmpty) {
+            setState(() => _publications = items);
+          }
+          return items;
+        }),
+        widget.repository.loadResultVersion(selection).then((value) {
+          if (current() &&
+              value != null &&
+              value.state != PublicationState.notReleased) {
+            setState(() => _version = value);
+          }
+          return value;
+        }),
+      ).wait;
+      if (current()) {
+        _publications = publications;
+        _version = version;
       }
     } catch (_) {
-      if (mounted && generation == _generation) {
-        setState(() {
-          _failed = true;
-          final old = _version;
-          if (old != null) {
-            _version = ResultVersion(
-              selection: old.selection,
-              state: old.state,
-              documentVersion: old.documentVersion,
-              freshness: SourceFreshness.stale,
-              lastSuccessfulCheckUtc: old.lastSuccessfulCheckUtc,
-              publicationUrl: old.publicationUrl,
-              documentUrl: old.documentUrl,
-              namesUrl: old.namesUrl,
-              namesBytes: old.namesBytes,
-              namesSha256: old.namesSha256,
-              validatedAtUtc: old.validatedAtUtc,
-              reason: old.reason,
-            );
-          }
-        });
-      }
+      if (current()) _failed = true;
     } finally {
-      if (mounted && generation == _generation) {
-        setState(() => _loading = false);
-      }
+      if (current()) setState(() => _loading = false);
     }
   }
 
@@ -336,7 +346,7 @@ class _ExamHomeState extends State<_ExamHome> {
   }
 
   Widget _content() {
-    if (_destination == 2) {
+    if (_inSettings) {
       return SettingsScreen(
         store: _store,
         lists: _lists,
@@ -359,15 +369,6 @@ class _ExamHomeState extends State<_ExamHome> {
         }),
       );
     }
-    if (_destination == 1) {
-      return ResultsScreen(
-        version: _version,
-        publications: _publications,
-        loading: _loading || _restoringSelection,
-        onChooseExam: _selected == null && _version == null ? _change : null,
-        onRetry: _failed && _publications.isEmpty ? _refresh : null,
-      );
-    }
     if (_restoringSelection) {
       return const Notice(
         'Loading official information',
@@ -377,35 +378,22 @@ class _ExamHomeState extends State<_ExamHome> {
         ),
       );
     }
-    if (_selected == null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ExamSelectionScreen(
-            repository: widget.repository,
-            onSelected: _select,
-          ),
-        ],
+    if (_selected == null) return const SizedBox.shrink();
+    if (_inUpdates) {
+      return UpdatesScreen(
+        examTitle: _selected!.exam.title,
+        repository: widget.repository,
+        selection: _selected!.selection,
+        revision: _advisoryRevision,
       );
     }
-    if (_loading && _version == null && _publications.isEmpty) {
-      return const Notice(
-        'Loading official information',
-        'Retrieving official announcements and result links.',
-        action: LinearProgressIndicator(
-          semanticsLabel: 'Loading official information',
-        ),
-      );
-    }
-    if (_failed && _version == null && _publications.isEmpty) {
-      return Notice(
-        'Official information unavailable',
-        'The service could not be reached. This does not establish whether results have been released.',
-        glyph: DesignGlyph.unreachable,
-        action: OutlinedButton(onPressed: _refresh, child: const Text('Retry')),
-      );
-    }
-    return UpdatesScreen(publications: _publications, version: _version);
+    final hasPrevious = _version != null || _publications.isNotEmpty;
+    return ResultsScreen(
+      version: _version,
+      publications: _publications,
+      loading: _loading && !hasPrevious,
+      onRetry: _failed && !hasPrevious ? _refresh : null,
+    );
   }
 
   @override
@@ -413,6 +401,7 @@ class _ExamHomeState extends State<_ExamHome> {
     if (_readingLaunch) return LaunchScreen(showProgress: _showLaunchProgress);
     if (_showWelcome) {
       return WelcomeScreen(
+        advisoryPilot: widget.advisoryPilot,
         onChoose: () => _finishIntro(chooseExam: true),
         onSkip: () => _finishIntro(chooseExam: false),
         busy: _savingIntro,
@@ -420,14 +409,19 @@ class _ExamHomeState extends State<_ExamHome> {
       );
     }
     return ExamShell(
+      advisoryPilot: widget.advisoryPilot,
       destination: _destination,
       onNavigate: (index) => setState(() => _destination = index),
       examTitle: _selected?.exam.title,
       examDetails: _selected?.details,
       restoringSelection: _restoringSelection,
       onChoose: _change,
-      canRefresh: _selected != null && _destination < 2,
-      onRefresh: _loading ? null : _refresh,
+      canRefresh: _selected != null && !_inSettings,
+      onRefresh: _inUpdates
+          ? () => setState(() => _advisoryRevision++)
+          : _loading
+          ? null
+          : _refresh,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -451,15 +445,20 @@ class _ExamHomeState extends State<_ExamHome> {
                 child: const Text('Retry'),
               ),
             ),
-          if (_localError != null && _destination == 2)
+          if (_localError != null && _inSettings)
             Notice('Device preferences', _localError!),
-          if (_failed && (_version != null || _publications.isNotEmpty))
+          if (_destination == 0 &&
+              _failed &&
+              (_version != null || _publications.isNotEmpty))
             const Notice(
               'Refresh unavailable',
               'Showing previously retrieved information.',
               warning: true,
             ),
-          if (_loading && _version != null) const LinearProgressIndicator(),
+          if (_destination == 0 &&
+              _loading &&
+              (_version != null || _publications.isNotEmpty))
+            const LinearProgressIndicator(),
           KeyedSubtree(key: ValueKey(_destination), child: _content()),
         ],
       ),
