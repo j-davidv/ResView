@@ -12,9 +12,11 @@ import 'domain/models.dart';
 import 'storage/private_store.dart';
 import 'storage/list_store.dart';
 import 'storage/bookmark_library.dart';
+import 'storage/history_library.dart';
 import 'ui/design.dart';
 import 'ui/bookmarks.dart';
 import 'ui/exam_selection.dart';
+import 'ui/history.dart';
 import 'ui/launch.dart';
 import 'ui/results.dart';
 import 'ui/settings.dart';
@@ -87,13 +89,15 @@ class _ExamHome extends StatefulWidget {
 class _ExamHomeState extends State<_ExamHome> {
   final _store = PrivateStore();
   late final _bookmarks = BookmarkLibrary(_store);
+  late final _history = HistoryLibrary(_store);
   late final _lists = widget.lists ?? ListStore();
   late final _push = PushPreferences(store: _store);
   int _destination = 0, _generation = 0;
   int _advisoryRevision = 0;
   bool get _inUpdates => widget.advisoryPilot && _destination == 1;
   bool get _inBookmarks => _destination == (widget.advisoryPilot ? 2 : 1);
-  bool get _inSettings => _destination == (widget.advisoryPilot ? 3 : 2);
+  bool get _inHistory => _destination == (widget.advisoryPilot ? 3 : 2);
+  bool get _inSettings => _destination == (widget.advisoryPilot ? 4 : 3);
   SelectedExam? _selected;
   ResultVersion? _version;
   List<Publication> _publications = [];
@@ -111,6 +115,7 @@ class _ExamHomeState extends State<_ExamHome> {
     _restoreLaunch();
     _restorePush();
     _restoreBookmarks();
+    _restoreHistory();
   }
 
   Future<void> _restoreLaunch() async {
@@ -203,6 +208,7 @@ class _ExamHomeState extends State<_ExamHome> {
   }
 
   Future<void> _restoreBookmarks() => _bookmarks.load();
+  Future<void> _restoreHistory() => _history.load();
 
   Future<void> _restorePush() async {
     try {
@@ -254,6 +260,7 @@ class _ExamHomeState extends State<_ExamHome> {
     _launchProgress?.cancel();
     _push.dispose();
     _bookmarks.dispose();
+    _history.dispose();
     super.dispose();
   }
 
@@ -377,10 +384,12 @@ class _ExamHomeState extends State<_ExamHome> {
             _localError = null;
           });
           unawaited(_bookmarks.load());
+          unawaited(_history.load());
         },
       );
     }
     if (_inBookmarks) return BookmarksScreen(library: _bookmarks);
+    if (_inHistory) return HistoryScreen(library: _history);
     if (_restoringSelection) {
       return const Notice(
         'Loading official information',
@@ -398,6 +407,7 @@ class _ExamHomeState extends State<_ExamHome> {
         examId: _selected!.exam.id,
         examTitle: _selected!.exam.title,
         bookmarks: _bookmarks,
+        historyLibrary: _history,
         revision: _advisoryRevision,
       );
     }
@@ -406,6 +416,7 @@ class _ExamHomeState extends State<_ExamHome> {
       version: _version,
       publications: _publications,
       bookmarks: _bookmarks,
+      historyLibrary: _history,
       examId: _selected!.exam.id,
       examName: _selected!.exam.title,
       sittingLabel: _selected!.details,
@@ -434,10 +445,10 @@ class _ExamHomeState extends State<_ExamHome> {
       examDetails: _selected?.details,
       restoringSelection: _restoringSelection,
       onChoose: _change,
-      canRefresh: _selected != null && !_inSettings && !_inBookmarks,
+      canRefresh: _selected != null && !_inSettings && !_inBookmarks && !_inHistory,
       onRefresh: _inUpdates
           ? () => setState(() => _advisoryRevision++)
-          : _inBookmarks || _loading
+          : _inBookmarks || _inHistory || _loading
           ? null
           : _refresh,
       child: Column(

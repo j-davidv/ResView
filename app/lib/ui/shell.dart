@@ -25,12 +25,14 @@ class ExamShell extends StatelessWidget {
     'Results',
     if (advisoryPilot) 'Updates',
     'Bookmarks',
+    'History',
     'Settings',
   ];
   List<DesignGlyph> get _glyphs => [
     DesignGlyph.results,
     if (advisoryPilot) DesignGlyph.updates,
     DesignGlyph.bookmark,
+    DesignGlyph.history,
     DesignGlyph.settings,
   ];
 
@@ -56,8 +58,9 @@ class ExamShell extends StatelessWidget {
           MediaQuery.viewInsetsOf(context).bottom > 0;
       final title = _titles[destination];
       final bookmarks = destination == (advisoryPilot ? 2 : 1);
+      final inHistory = destination == (advisoryPilot ? 3 : 2);
       final settings = destination == _titles.length - 1;
-      final showContext = !settings && !bookmarks && !restoringSelection;
+      final showContext = !settings && !bookmarks && !inHistory && !restoringSelection;
       final contextCard = ExamContextCard(
         title: examTitle,
         details: examDetails,

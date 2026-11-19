@@ -244,7 +244,7 @@ class _SettingsState extends State<SettingsScreen> {
     if (await confirmDelete(
       context,
       'Delete local data?',
-      'Delete your saved exam selection, bookmarks, and any files from earlier app versions. Email subscriptions and server push preferences are managed separately.',
+      'Delete your saved exam selection, bookmarks, viewing history, and any files from earlier app versions. Email subscriptions and server push preferences are managed separately.',
     )) {
       await _operation(() async {
         await widget.lists.clearAll();

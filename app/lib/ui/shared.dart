@@ -4,12 +4,16 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../domain/bookmark.dart';
+import '../domain/history.dart';
 import '../domain/models.dart';
 import '../storage/bookmark_library.dart';
+import '../storage/history_library.dart';
 import 'design.dart';
 import 'source_viewer.dart';
 
-const privacyDisclosure = '''ResView saves your selected exam and your bookmarks on this device so you can return to official announcements and result lists.
+final Map<BookmarkLibrary, Set<String>> _pendingBookmarks = {};
+
+const privacyDisclosure = '''ResView saves your selected exam, bookmarks, and viewing history on this device so you can return to official announcements and result lists.
 
 Opening an official source connects to PRC or Google Drive and requires internet access. Google Drive handles searches made in its document viewer. ResView does not save that search text.
 
@@ -17,7 +21,7 @@ If you enable push alerts, Firebase processes an anonymous account identifier, y
 
 If you subscribe to emails, Brevo stores your email address and selected exam preferences to confirm your subscription and send updates. You can unsubscribe from an email.
 
-Delete local data in Settings to remove your exam selection and any files from earlier app versions. Email subscriptions and server push preferences have separate controls.''';
+Delete local data in Settings to remove your exam selection, bookmarks, viewing history, and any files from earlier app versions. Email subscriptions and server push preferences have separate controls.''';
 
 String publicationLabel(PublicationState state) => switch (state) {
   PublicationState.notReleased => 'Not released',
@@ -150,6 +154,7 @@ class SourceLinks extends StatelessWidget {
     this.version, {
     this.publications = const [],
     this.bookmarks,
+    this.historyLibrary,
     this.examId,
     this.examName,
     this.sittingLabel,
@@ -158,17 +163,18 @@ class SourceLinks extends StatelessWidget {
   final ResultVersion? version;
   final List<Publication> publications;
   final BookmarkLibrary? bookmarks;
+  final HistoryLibrary? historyLibrary;
   final String? examId, examName, sittingLabel;
 
   @override
   Widget build(BuildContext context) {
-    final history = <Uri, List<Publication>>{};
+    final grouped = <Uri, List<Publication>>{};
     for (final article in publications) {
-      (history[_articleIdentity(article.url)] ??= []).add(article);
+      (grouped[_articleIdentity(article.url)] ??= []).add(article);
     }
     final url = version?.publicationUrl;
-    final featured = history.remove(
-      url == null ? history.keys.firstOrNull : _articleIdentity(url),
+    final featured = grouped.remove(
+      url == null ? grouped.keys.firstOrNull : _articleIdentity(url),
     );
     final document = version?.documentUrl;
     final separateList =
@@ -206,11 +212,17 @@ class SourceLinks extends StatelessWidget {
             ),
           OfficialSourceLinks(
             documents: {document: 'successful-examinee list'},
+            historyLibrary: historyLibrary,
+            documentsHistoryEntry: _historyItem(
+              document,
+              version: version,
+              fallbackTitle: 'Official successful-examinee list',
+            ),
           ),
         ],
-        if (history.isNotEmpty) ...[
+        if (grouped.isNotEmpty) ...[
           const Heading('Other result publications'),
-          for (final article in history.values)
+          for (final article in grouped.values)
             _article(context, article, version: version),
         ],
       ],
@@ -223,20 +235,49 @@ class SourceLinks extends StatelessWidget {
     ResultVersion? version,
     String? fallbackTitle,
   }) {
-    final id = article?.id ??
-        (version == null
-            ? uri.toString()
-            : '${version.selection.examId}:${version.selection.sittingId}:${version.selection.categoryId}:${version.documentVersion}');
+    final id = article == null && version != null
+        ? '${version.selection.examId}:${version.selection.sittingId}:${version.selection.categoryId}:${version.documentVersion}'
+        : _articleIdentity(uri).toString();
     if (bookmarks == null || examId == null || examName == null) return null;
     return BookmarkItem(
       id: id,
       kind: BookmarkKind.result,
       examId: examId!,
       examName: examName!,
-      title: article?.title ?? fallbackTitle ?? 'Official result publication',
+      title: article?.title.trim().isNotEmpty == true
+          ? article!.title
+          : fallbackTitle ?? 'Official result publication',
       url: uri,
       publishedAtUtc: article?.publishedAtUtc,
       savedAtUtc: DateTime.now().toUtc(),
+      sittingLabel: sittingLabel,
+    );
+  }
+
+  HistoryEntry? _historyItem(
+    Uri uri, {
+    Publication? article,
+    ResultVersion? version,
+    String? fallbackTitle,
+  }) {
+    if (historyLibrary == null || examId == null || examName == null) {
+      return null;
+    }
+    final sourceId = article?.id ??
+        (version == null
+            ? uri.toString()
+            : '${version.selection.examId}:${version.selection.sittingId}:${version.selection.categoryId}:${version.documentVersion}');
+    return HistoryEntry(
+      sourceId: sourceId,
+      kind: HistoryKind.result,
+      examId: examId!,
+      examName: examName!,
+      title: article?.title.trim().isNotEmpty == true
+          ? article!.title
+          : fallbackTitle ?? 'Official result publication',
+      url: uri,
+      publishedAtUtc: article?.publishedAtUtc,
+      viewedAtUtc: DateTime.now().toUtc(),
       sittingLabel: sittingLabel,
     );
   }
@@ -264,6 +305,18 @@ class SourceLinks extends StatelessWidget {
         documents.putIfAbsent(link.key, () => link.value);
       }
     }
+    final effectiveDocs = documents.isEmpty && fallback != null
+        ? {fallback: 'successful-examinee list'}
+        : documents;
+    final effectiveUrl = bookmarkUrl ?? url ?? article?.url;
+    final articleHistoryEntry = effectiveUrl == null
+        ? null
+        : _historyItem(
+            effectiveUrl,
+            article: article,
+            version: version,
+            fallbackTitle: 'Official result publication',
+          );
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DesignCard(
@@ -309,9 +362,17 @@ class SourceLinks extends StatelessWidget {
             ],
             OfficialSourceLinks(
               publicationUrl: url ?? article?.url,
-              documents: documents.isEmpty && fallback != null
-                  ? {fallback: 'successful-examinee list'}
-                  : documents,
+              documents: effectiveDocs,
+              historyLibrary: historyLibrary,
+              publicationHistoryEntry: url != null || article != null
+                  ? _historyItem(
+                      url ?? article!.url,
+                      article: article,
+                      version: version,
+                      fallbackTitle: 'Official result publication',
+                    )
+                  : null,
+              documentsHistoryEntry: articleHistoryEntry,
             ),
           ],
         ),
@@ -324,10 +385,19 @@ class OfficialSourceLinks extends StatelessWidget {
   const OfficialSourceLinks({
     required this.documents,
     this.publicationUrl,
+    this.historyLibrary,
+    this.publicationHistoryEntry,
+    this.documentsHistoryEntry,
     super.key,
   });
   final Map<Uri, String> documents;
   final Uri? publicationUrl;
+  final HistoryLibrary? historyLibrary;
+  // History entry for the PRC publication announcement link.
+  final HistoryEntry? publicationHistoryEntry;
+  // History entry shared for document links (passers list / result docs).
+  final HistoryEntry? documentsHistoryEntry;
+
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -337,18 +407,35 @@ class OfficialSourceLinks extends StatelessWidget {
           '${entry.value == 'successful-examinee list' ? 'View list of passers' : 'Open ${entry.value}'}${entry.value == 'successful-examinee list' && documents.length > 1 ? ' ${index + 1}' : ''}',
           entry.key,
           filled: true,
+          historyLibrary: historyLibrary,
+          historyEntry: documentsHistoryEntry,
         ),
       if (publicationUrl != null)
-        SourceButton('PRC announcement', publicationUrl!),
+        SourceButton(
+          'PRC announcement',
+          publicationUrl!,
+          historyLibrary: historyLibrary,
+          historyEntry: publicationHistoryEntry,
+        ),
     ],
   );
 }
 
 class SourceButton extends StatelessWidget {
-  const SourceButton(this.label, this.uri, {this.filled = false, super.key});
+  const SourceButton(
+    this.label,
+    this.uri, {
+    this.filled = false,
+    this.historyLibrary,
+    this.historyEntry,
+    super.key,
+  });
   final String label;
   final Uri uri;
   final bool filled;
+  final HistoryLibrary? historyLibrary;
+  final HistoryEntry? historyEntry;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -381,7 +468,16 @@ class SourceButton extends StatelessWidget {
         const DesignIcon(DesignGlyph.externalLink, size: 20),
       ],
     );
-    void open() => openSource(context, uri);
+    void open() {
+      openSource(
+        context,
+        uri,
+        onOpened: historyLibrary != null && historyEntry != null
+            ? () => historyLibrary!.record(historyEntry!)
+            : null,
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: filled
@@ -420,6 +516,7 @@ class BookmarkToggleButton extends StatelessWidget {
     animation: library,
     builder: (context, _) {
       final saved = library.contains(item);
+      final pending = _pendingBookmarks[library]?.contains(item.key) ?? false;
       final type = item.kind == BookmarkKind.announcement
           ? 'announcement'
           : 'result publication';
@@ -427,14 +524,15 @@ class BookmarkToggleButton extends StatelessWidget {
         tooltip: saved
             ? 'Remove $type from bookmarks'
             : 'Bookmark $type',
-        onPressed: library.loaded
+        onPressed: library.loaded && !pending
             ? () async {
+                _pendingBookmarks.putIfAbsent(library, () => <String>{}).add(item.key);
                 try {
-                  await library.toggle(item);
+                  final appliedSaved = await library.toggle(item);
                   if (context.mounted) {
                     feedback(
                       context,
-                      saved ? 'Bookmark removed.' : 'Saved to bookmarks.',
+                      appliedSaved ? 'Saved to bookmarks.' : 'Bookmark removed.',
                     );
                   }
                 } catch (_) {
@@ -444,6 +542,9 @@ class BookmarkToggleButton extends StatelessWidget {
                       'Bookmark could not be updated. Try again.',
                     );
                   }
+                } finally {
+                  _pendingBookmarks[library]?.remove(item.key);
+                  if (context.mounted) (context as Element).markNeedsBuild();
                 }
               }
             : null,
@@ -460,6 +561,7 @@ Future<void> openSource(
   BuildContext context,
   Uri uri, {
   bool external = false,
+  VoidCallback? onOpened,
 }) async {
   final embedded = sourceViewerUrl(uri);
   if (!external &&
@@ -470,7 +572,13 @@ Future<void> openSource(
       MaterialPageRoute(
         builder: (_) => SourceViewer(
           uri: embedded,
-          openExternal: (value) => openSource(context, value, external: true),
+          openExternal: (value) => openSource(
+            context,
+            value,
+            external: true,
+            onOpened: onOpened,
+          ),
+          onSourceLoaded: onOpened,
         ),
       ),
     );
@@ -481,6 +589,7 @@ Future<void> openSource(
     publicUrl(uri.toString());
     opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
   } catch (_) {}
+  if (opened) onOpened?.call();
   if (!opened && context.mounted) {
     await showDialog<void>(
       context: context,
@@ -534,6 +643,7 @@ Future<bool> confirmDelete(
       ),
     ) ??
     false;
+
 void feedback(BuildContext context, String message) {
   if (context.mounted) {
     ScaffoldMessenger.of(context)

@@ -252,7 +252,8 @@ enum DesignGlyph {
   bookmark('bookmark-outline'),
   bookmarked('bookmark-filled'),
   close('close'),
-  sitting('calendar-month-outline');
+  sitting('calendar-month-outline'),
+  history('schedule');
 
   const DesignGlyph(this.asset, {this.directional = false});
   final String asset;

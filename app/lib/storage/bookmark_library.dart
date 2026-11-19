@@ -24,22 +24,30 @@ class BookmarkLibrary extends ChangeNotifier {
     loading = true;
     error = null;
     notifyListeners();
-    try {
-      _items = await _store.readBookmarks();
-      _sort();
-      loaded = true;
-    } catch (_) {
-      error = 'Saved bookmarks could not be loaded. Try again.';
-    } finally {
-      loading = false;
-      notifyListeners();
-    }
+    final completer = Completer<void>();
+    _writes = _writes.then((_) async {
+      try {
+        _items = await _store.readBookmarks();
+        _sort();
+        loaded = true;
+        error = null;
+        completer.complete();
+      } catch (_) {
+        error = 'Saved bookmarks could not be loaded. Try again.';
+        completer.completeError(StateError(error!));
+      } finally {
+        loading = false;
+        notifyListeners();
+      }
+    });
+    await completer.future;
   }
 
-  Future<void> toggle(BookmarkItem item) {
+  Future<bool> toggle(BookmarkItem item) {
     if (!loaded) {
       return Future.error(StateError('Bookmarks are still loading.'));
     }
+    var saved = false;
     return _mutate(() async {
       final index = _items.indexWhere((saved) => saved.key == item.key);
       final next = [..._items];
@@ -51,7 +59,8 @@ class BookmarkLibrary extends ChangeNotifier {
       await _store.saveBookmarks(next);
       _items = next;
       _sort();
-    });
+      saved = index < 0;
+    }).then((_) => saved);
   }
 
   Future<void> remove(String key) {
