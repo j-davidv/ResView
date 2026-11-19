@@ -1,18 +1,31 @@
 # ResView
 
-Native Android Flutter app implementing the approved Material 3 UI. Open `app/` in Android Studio. Without live configuration it reports services unavailable; no sample catalog/results or simulated delivery are substituted.
+ResView is an Android app for Philippine board exam takers. Choose your exam to read official result announcements and follow updates from the Professional Regulation Commission (PRC).
 
-Browse official PRC updates and result lists through Updates, Results, and Settings. Automatic name validation and saved checker lists have been retired; supported official Drive documents keep manual Find text. Android uses the ResView name and RV logo.
+## Choose your exam
 
-- [Approved design](DESIGN.md)
-- [Setup and Android Studio runbook](docs/android-studio-runbook.md)
-- [Free live-service account setup](docs/live-service-setup.md)
-- [Implementation progress and pending gates](docs/implementation-progress.md)
-- [PRC worker and run instructions](worker/README.md)
-- [Actual live source evidence](docs/source-access.md)
-- [Android verification evidence](docs/android-studio-acceptance.md)
-- [Impeccable native UI audit](docs/ui-audit.md)
+1. Open ResView and tap Choose my exam.
+2. Select your exam, sitting and category. Domestic, special and overseas sittings are listed separately.
+3. Tap View results.
 
-From `app`, run `flutter analyze` and `flutter test`. Android integration checks use `flutter test integration_test/app_test.dart -d <android-device-id>` and isolate synthetic fixtures to tests.
+Your selection is saved on your device. Tap Change to choose another exam or sitting.
 
-PRC access, provider configuration, outbound messages, physical-device acceptance and public distribution retain their separate gates. This repository does not claim complete live-service or release acceptance.
+## Read results and official lists
+
+The app opens on Results, where you can see PRC publications for your selected sitting and category. Open an announcement to read the release, or tap View list of passers to open its successful-examinee list. Earlier publications and their lists stay accessible when PRC issues another release for the same sitting.
+
+On supported Google Drive documents, use Find text in document to look for a name. Check the official entry carefully: a text match alone does not confirm someone's identity, and a missing match does not establish exam failure.
+
+## Follow exam updates
+
+Updates shows the latest verified PRC post associated with your exam across its sittings. Each post includes its PRC posting date and a link to the original notice.
+
+Tap View all updates to read the available history, newest first, with posts dated January 1, 2026 onward. The screen shows the archive dates checked and warns when its information may be outdated.
+
+## Your data
+
+You can browse results and updates without creating an account. Refreshing information and opening official sources require an internet connection.
+
+ResView saves your exam selection on your device. You can change it or delete local data in Settings. Google Drive handles searches made in its document viewer; ResView does not save that search text.
+
+ResView is an independent app and is not affiliated with PRC.
