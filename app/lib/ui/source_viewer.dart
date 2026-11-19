@@ -193,7 +193,7 @@ class _SourceViewerState extends State<SourceViewer> {
           child: LayoutBuilder(
             builder: (context, size) => Column(
               children: [
-                if (_drive || _blocked != null)
+                if ((_drive && supported) || _blocked != null)
                   ConstrainedBox(
                     constraints: BoxConstraints(
                       maxHeight: size.maxHeight * .55,
@@ -203,17 +203,14 @@ class _SourceViewerState extends State<SourceViewer> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            _uri.host,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 8),
-                          if (_drive)
-                            const Text(
-                              'Search uses Google Drive. ResView does not save this search text.',
+                          if (!_drive) ...[
+                            Text(
+                              _uri.host,
+                              style: Theme.of(context).textTheme.titleMedium,
                             ),
+                            const SizedBox(height: 8),
+                          ],
                           if (_drive && supported) ...[
-                            const SizedBox(height: 12),
                             TextField(
                               controller: _query,
                               enabled: !_finding,
