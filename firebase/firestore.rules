@@ -37,6 +37,9 @@ service cloud.firestore {
     match /resultVersions/{id} {
       allow read: if true;
     }
+    match /examUpdates/{examId} {
+      allow get: if true;
+    }
     match /monitor/status {
       allow get: if true;
     }

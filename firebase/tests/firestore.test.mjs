@@ -9,8 +9,8 @@ import {
 let env;
 const selection = { examId: 'exam', sittingId: 'sitting', categoryId: 'category' };
 const valid = () => ({ enabled: true, selection, token: 'test-token', lastActiveAtUtc: serverTimestamp() });
-const publicPaths = ['exams/exam', 'sittings/sitting', 'publications/publication', 'resultVersions/version', 'monitor/status'];
-const privatePaths = ['emailQueue/job', 'deliveryAttempts/attempt', 'workerState/cursor', 'validationReviews/review', 'unknown/document', 'monitor/private', 'exams/exam/private/record', 'pushPreferences/visitor/private/record'];
+const publicPaths = ['exams/exam', 'sittings/sitting', 'publications/publication', 'resultVersions/version', 'examUpdates/exam', 'monitor/status'];
+const privatePaths = ['emailQueue/job', 'deliveryAttempts/attempt', 'workerState/cursor', 'validationReviews/review', 'unknown/document', 'workerAdvisoryReview/item', 'advisoryFeeds/exam/sittings/sitting/categories/category', 'monitor/private', 'exams/exam/private/record', 'pushPreferences/visitor/private/record'];
 
 before(async () => {
   // Refuse the live project: all fixtures and simulated identities stay in the emulator.
@@ -33,6 +33,8 @@ test('public metadata is readable without authentication; private paths are not'
     for (const path of publicPaths) await assertSucceeds(getDoc(doc(db, path)));
     for (const path of privatePaths) await assertFails(getDoc(doc(db, path)));
     await assertFails(getDocs(collection(db, 'monitor')));
+    await assertFails(getDocs(collection(db, 'examUpdates')));
+    await assertFails(getDocs(collection(db, 'advisoryFeeds/exam/sittings/sitting/categories')));
   }
 });
 
@@ -110,5 +112,47 @@ test('invalid registration and update payloads are rejected', async () => {
     await setDoc(ref, valid());
     await assertFails(updateDoc(ref, { [key]: deleteField(), ...(key === 'lastActiveAtUtc' ? {} : { lastActiveAtUtc: serverTimestamp() }) }));
     await deleteDoc(ref);
+  }
+});
+
+test('demo pilot allows exact anonymous notice reads and denies listing and writes', async () => {
+  const demo = await initializeTestEnvironment({
+    projectId: 'demo-resview-advisories',
+    firestore: { rules: readFileSync(new URL('./advisory-pilot.rules', import.meta.url), 'utf8') },
+  });
+  try {
+    // These catalog fixtures also let the Android test restore each pilot selection.
+    await demo.withSecurityRulesDisabled(async context => {
+      const db = context.firestore();
+      for (const [examId, title, start, end] of [
+        ['master-plumbers', 'Master Plumbers', '2026-02-19', '2026-02-20'],
+        ['master-plumbers', 'Master Plumbers', '2026-07-11', '2026-07-12'],
+        ['landscape-architects', 'Landscape Architects', '2026-07-14', '2026-07-15'],
+      ]) {
+        await setDoc(doc(db, 'exams', examId), { title });
+        await setDoc(doc(db, 'sittings', examId + '-' + start), {
+          examId, start, end, type: 'domestic', location: '', categories: { all: 'All successful examinees' },
+        });
+      }
+    });
+    for (const path of ['exams', 'sittings', 'publications', 'resultVersions']) {
+      const db = demo.unauthenticatedContext().firestore();
+      await assertSucceeds(getDocs(collection(db, path)));
+      await assertFails(setDoc(doc(db, path, 'test-write'), { injected: true }));
+    }
+    const path = 'advisoryFeeds/exam/sittings/sitting/categories/category';
+    for (const db of [demo.unauthenticatedContext().firestore(), demo.authenticatedContext('visitor').firestore()]) {
+      await assertSucceeds(getDoc(doc(db, 'examUpdates/exam')));
+      await assertFails(getDocs(collection(db, 'examUpdates')));
+      await assertFails(setDoc(doc(db, 'examUpdates/exam'), { notices: [] }));
+      await assertSucceeds(getDoc(doc(db, path)));
+      await assertFails(getDocs(collection(db, 'advisoryFeeds/exam/sittings/sitting/categories')));
+      await assertFails(setDoc(doc(db, path), { notices: [] }));
+      await assertFails(updateDoc(doc(db, path), { notices: [] }));
+      await assertFails(deleteDoc(doc(db, path)));
+      await assertFails(getDoc(doc(db, 'workerAdvisoryReview/item')));
+    }
+  } finally {
+    await demo.cleanup();
   }
 });

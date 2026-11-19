@@ -11,8 +11,13 @@ on:
         description: Retrieve permitted originals encrypted for independent review (no activation)
         type: boolean
         default: false
+      exam_history:
+        description: Refresh the Release 2 exam history
+        type: boolean
+        default: false
   schedule:
     - cron: '57 * * * *'
+    - cron: '13 2 * * *'
   push:
     paths: ['worker/**', '.github/workflows/monitor.yml']
   pull_request:
@@ -42,7 +47,7 @@ jobs:
     if: >-
       github.ref == 'refs/heads/main' &&
       ((github.event_name == 'workflow_dispatch' && (inputs.live || inputs.review_documents)) ||
-       (github.event_name == 'schedule' && vars.PRC_MONITOR_ENABLED == 'true'))
+       (github.event_name == 'schedule' && github.event.schedule == '57 * * * *' && vars.PRC_MONITOR_ENABLED == 'true'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -112,3 +117,37 @@ jobs:
                   except Exception as error:
                       print(host, address, type(error).__name__)
           PY
+
+  exam-history:
+    needs: test
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.exam_history) ||
+       (github.event_name == 'schedule' && github.event.schedule == '13 2 * * *' &&
+        vars.PRC_EXAM_HISTORY_ENABLED == 'true'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      FIREBASE_PROJECT_ID: resview-9240c
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: runtime/history-cache
+          key: prc-history-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: prc-history-v1-
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_WORKER_SERVICE_ACCOUNT }}
+      - run: pip install -r worker/requirements.txt
+      - name: Refresh verified exam histories
+        env:
+          PRC_ARCHIVE_TOKEN: ${{ secrets.PRC_ARCHIVE_TOKEN }}
+        run: python -m worker.exam_history --hosted-source --cache runtime/history-cache --publish-live

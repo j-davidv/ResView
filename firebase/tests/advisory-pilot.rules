@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{collection}/{id} {
+      allow read: if collection in ['exams', 'sittings', 'publications', 'resultVersions'];
+    }
+    match /monitor/status {
+      allow get: if true;
+    }
+    match /examUpdates/{examId} {
+      allow get: if true;
+    }
+    match /advisoryFeeds/{examId}/sittings/{sittingId}/categories/{categoryId} {
+      allow get: if true;
+    }
+  }
+}

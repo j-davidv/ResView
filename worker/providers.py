@@ -8,7 +8,7 @@ from google.cloud import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 from worker.extract import MAX_BYTES, encode
-from worker.source import publication_identity_url
+from worker.source import SourceError, publication_identity_url
 
 
 def identifier(value):
@@ -137,6 +137,81 @@ class Providers:
                     (record.get('examId'), record.get('officialDates')) in parsed):
                 self.db.collection('workerReview').document(row.id).update(
                     {'status': 'resolved', 'resolvedAtUtc': now.isoformat()})
+
+    def advisory_snapshots(self, pilot, feeds, now, review=None):
+        scopes = [scope['selection'] for scope in pilot['scopes']]
+        keys = [tuple(s[k] for k in ('examId', 'sittingId', 'categoryId')) for s in scopes]
+        if len(keys) > 8 or any(not re.fullmatch(r'[\w-]{1,180}', part) for key in keys for part in key):
+            if feeds is not None:
+                raise SourceError('Advisory selection limit or identifier is invalid.')
+            keys = []
+        stamp = now.isoformat()
+        paths = {key: 'advisoryFeeds/{}/sittings/{}/categories/{}'.format(*key) for key in keys}
+        if feeds is not None and (set(feeds) != set(keys) or
+                any(len(items) > 64 or len(encode(items)) > 256 * 1024 for items in feeds.values())):
+            raise SourceError('Advisory snapshot exceeds the reviewed bounds.')
+        marker = self.db.document('workerState/advisoryPilot')
+
+        @firestore.transactional
+        def publish(tx):
+            prior = marker.get(transaction=tx).to_dict() or {}
+            if prior.get('attempt', '') >= stamp:
+                return
+            previous = set(prior.get('paths', []))
+            current = set(paths.values())
+            if feeds is None and previous:
+                current = previous
+                for path in previous:
+                    tx.set(self.db.document(path), {'freshness': 'stale'}, merge=True)
+            else:
+                for key, path in paths.items():
+                    tx.set(self.db.document(path), {
+                        'coverageStartUtc': pilot['coverageStartUtc'], 'coverageEndUtc': pilot['coverageEndUtc'],
+                        'lastSuccessfulCheckUtc': stamp if feeds is not None else None,
+                        'freshness': 'fresh' if feeds is not None else 'stale',
+                        'notices': feeds[key] if feeds is not None else [],
+                    })
+                for path in previous - current:
+                    tx.delete(self.db.document(path))
+            if review is not None:
+                ref = self.db.document('workerAdvisoryReview/' + identifier(review.url))
+                tx.set(ref, {'url': review.url, 'reason': str(review), 'observedAtUtc': stamp})
+            tx.set(marker, {'attempt': stamp, 'paths': sorted(current)})
+        publish(self.db.transaction())
+
+    def exam_histories(self, feeds, start, now):
+        stamp = now.isoformat()
+        documents = {}
+        for exam, items in (feeds or {}).items():
+            if not re.fullmatch(r'[a-z0-9-]{1,180}', exam):
+                raise SourceError('Invalid exam history identifier.')
+            data = {'coverageStartUtc': start.isoformat(), 'coverageEndUtc': stamp,
+                    'lastSuccessfulCheckUtc': stamp, 'freshness': 'fresh', 'notices': items}
+            if len(encode(data)) > 800 * 1024:
+                raise SourceError('Exam history exceeds the single-document budget.')
+            documents[exam] = data
+        checkpoint = self.db.document('workerState/examHistory')
+
+        @firestore.transactional
+        def publish(tx):
+            saved = checkpoint.get(transaction=tx).to_dict() or {}
+            if saved.get('checked', '') >= stamp:
+                return
+            if feeds is None:
+                for exam in saved.get('exams', []):
+                    tx.set(self.db.document('examUpdates/' + exam), {'freshness': 'stale'}, merge=True)
+                tx.set(checkpoint, {'checked': stamp}, merge=True)
+                return
+            retired = set(saved.get('exams', [])) - documents.keys()
+            if len(documents) + len(retired) >= 500:
+                raise SourceError('Exam history exceeds the transaction budget.')
+            for exam, data in documents.items():
+                tx.set(self.db.document('examUpdates/' + exam), data)
+            for exam in retired:
+                # The production worker can replace documents, but cannot delete them.
+                tx.set(self.db.document('examUpdates/' + exam), {'retired': True})
+            tx.set(checkpoint, {'checked': stamp, 'exams': sorted(documents)})
+        publish(self.db.transaction())
 
     def public_url(self, key):
         if not self.storage_host:

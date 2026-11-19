@@ -32,6 +32,7 @@ class SourcePolicy:
         if not config.get('accessAuthorization') or not config.get('routes'):
             raise SourceError('Live source access is not configured.')
         self.routes = config['routes']
+        self.exact_routes = config.get('exactRoutes', {})
         self.drive_api_enabled = config.get('driveApi') is True
         self.robots = {}
         self.require_robots = False
@@ -42,9 +43,9 @@ class SourcePolicy:
         if (parsed.scheme != 'https' or parsed.hostname not in self.routes
                 or parsed.username or parsed.password or parsed.port not in (None, 443)
                 or '\\' in url or any(part in ('.', '..') for part in path.split('/'))
-                or not any((re.fullmatch(re.escape(route).replace(r'\{year\}', r'20\d{2}'), path)
+                or (path not in self.exact_routes.get(parsed.hostname, ()) and not any((re.fullmatch(re.escape(route).replace(r'\{year\}', r'20\d{2}'), path)
                             if '{year}' in route else path.startswith(route))
-                           for route in self.routes[parsed.hostname])):
+                           for route in self.routes[parsed.hostname]))):
             raise SourceError('Unapproved source route.')
         if self.require_robots and (parsed.hostname not in self.robots
                                    or not self.robots[parsed.hostname].can_fetch(USER_AGENT, url)):
