@@ -328,7 +328,7 @@ void main() {
   );
 
   testWidgets(
-    'settings keeps consent, email, and privacy controls accessible',
+    'settings keeps email accessible and About us focused on the overview',
     (tester) async {
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(ExamApp(listStore: TestListStore()));
@@ -342,28 +342,28 @@ void main() {
       await tester.tap(find.text('Email updates'));
       await tester.pumpAndSettle();
       expect(find.text('Email signup unavailable'), findsOneWidget);
-      await tester.tap(find.byTooltip('Back'));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Privacy and data'));
-      await tester.tap(find.text('Privacy and data'));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(
-        find.text('Delete server-side push preferences'),
-      );
-      await tester.tap(find.text('Delete server-side push preferences'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Delete').last);
-      await tester.pumpAndSettle();
-      final retry = find.widgetWithText(OutlinedButton, 'Retry').last;
-      await tester.ensureVisible(retry);
-      await tester.tap(retry);
+      await tester.ensureVisible(find.text('Unsubscribe from email updates'));
+      await tester.tap(find.text('Unsubscribe from email updates'));
       await tester.pumpAndSettle();
       expect(
-        find.text(
-          'Server deletion pending. Alerts may continue until confirmed.',
-        ),
-        findsWidgets,
+        find.textContaining('Open an email update from ResView'),
+        findsOneWidget,
       );
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('About us'));
+      await tester.tap(find.text('About us'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('ResView helps you follow'), findsOneWidget);
+      expect(
+        find.textContaining('ResView saves your exam choice'),
+        findsOneWidget,
+      );
+      expect(find.text('Privacy controls'), findsNothing);
+      expect(find.text('Android notification settings'), findsNothing);
+      expect(find.text('Delete server-side push preferences'), findsNothing);
     },
   );
 }

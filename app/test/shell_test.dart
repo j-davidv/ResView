@@ -70,7 +70,7 @@ void main() {
       expect(find.textContaining('Demo data'), findsNothing);
       await tester.tap(find.text('Settings').last);
       await tester.pumpAndSettle();
-      expect(find.text('Privacy and data'), findsOneWidget);
+      expect(find.text('About us'), findsOneWidget);
     },
   );
   testWidgets(

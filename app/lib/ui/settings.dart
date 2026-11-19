@@ -37,8 +37,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsState extends State<SettingsScreen> {
   static const _emailUrl = String.fromEnvironment('BREVO_SIGNUP_URL');
-  static const _policyUrl = String.fromEnvironment('PRIVACY_POLICY_URL');
-  static const _contactUrl = String.fromEnvironment('MAINTAINER_CONTACT_URL');
   final _detailRevision = ValueNotifier(0);
   bool _busy = false;
   String? _error;
@@ -96,7 +94,7 @@ class _SettingsState extends State<SettingsScreen> {
           scrollable: true,
           title: const Text('Enable push alerts?'),
           content: const Text(
-            'Firebase will process an anonymous account identifier, your exam preference, and a device notification token. Alerts announce official PRC publications for your selected exam.',
+            'Get notifications on this phone about official PRC results and announcements for your selected exam.\n\nResView saves your exam choice to send alerts to this phone. You can turn them off anytime in Settings.',
           ),
           actions: [
             TextButton(
@@ -117,8 +115,8 @@ class _SettingsState extends State<SettingsScreen> {
           ? widget.push.enable(widget.selection!)
           : widget.push.disable(),
       enabled
-          ? 'Push preference registered. Delivery is not guaranteed.'
-          : 'Push preferences deleted.',
+          ? 'Push alerts turned on.'
+          : 'Push alerts turned off.',
     );
   }
 
@@ -160,7 +158,7 @@ class _SettingsState extends State<SettingsScreen> {
 
   List<Widget> _emailDetails() => [
     const Text(
-      'Email preferences are independent of this device. Confirm your subscription through the email provider. Uninstalling does not unsubscribe you.',
+      'Get exam updates by email after confirming your subscription. To stop receiving them, use the unsubscribe link in an update email.',
     ),
     const SizedBox(height: 12),
     if (_emailUrl.isEmpty)
@@ -181,9 +179,9 @@ class _SettingsState extends State<SettingsScreen> {
         context: context,
         builder: (dialog) => AlertDialog(
           scrollable: true,
-          title: const Text('Unsubscribe from emails'),
+          title: const Text('Unsubscribe from email updates'),
           content: const Text(
-            'Use the unsubscribe link in an email from this service. Deleting local data or uninstalling this app does not cancel email updates. The email provider manages confirmation and suppression.',
+            'Open an email update from ResView, tap Unsubscribe at the bottom, and follow the instructions to stop receiving emails. Deleting local data or uninstalling ResView does not cancel your email subscription.',
           ),
           actions: [
             TextButton(
@@ -193,7 +191,7 @@ class _SettingsState extends State<SettingsScreen> {
           ],
         ),
       ),
-      child: const Text('Unsubscribe instructions'),
+      child: const Text('Unsubscribe from email updates'),
     ),
   ];
 
@@ -223,36 +221,24 @@ class _SettingsState extends State<SettingsScreen> {
     }
   }
 
-  List<Widget> _privacyDetails() => [
-    const SelectableText(privacyDisclosure),
-    const SizedBox(height: 16),
-    if (_policyUrl.isNotEmpty)
-      SourceButton('Privacy policy', Uri.parse(_policyUrl)),
-    if (_contactUrl.isNotEmpty)
-      SourceButton('Maintainer contact', Uri.parse(_contactUrl)),
-    TextButton(
-      onPressed: _openNotificationSettings,
-      child: const Text('Android notification settings'),
+  List<Widget> _aboutDetails() => [
+    const Text(
+      'ResView helps you follow Philippine board exam results and announcements from the Professional Regulation Commission (PRC).',
     ),
-    OutlinedButton.icon(
-      onPressed: _busy || widget.restoringPush ? null : _deletePushPreferences,
-      icon: const DesignIcon(DesignGlyph.delete),
-      label: const Text('Delete server-side push preferences'),
+    const SizedBox(height: 16),
+    const Text(
+      'Choose your exam to find its announcements and result lists in one place. Open the official sources, search supported result documents, and review earlier updates for your exam.',
+    ),
+    const SizedBox(height: 16),
+    const Text(
+      'Check the official publication carefully to confirm your result.',
+    ),
+    const SizedBox(height: 24),
+    Text(
+      'ResView saves your exam choice on this device, Google handles document searches, and optional alerts use the subscription details you agree to share.',
+      style: Theme.of(context).textTheme.bodySmall,
     ),
   ];
-
-  Future<void> _deletePushPreferences() async {
-    if (await confirmDelete(
-      context,
-      'Delete server-side push preferences?',
-      'Stop this installation’s push subscription. If offline, deletion remains pending and alerts may continue until confirmed. Email subscriptions are separate.',
-    )) {
-      await _operation(
-        widget.push.deleteServerPreferences,
-        'Server push preferences deleted.',
-      );
-    }
-  }
 
   Future<void> _deleteLocalData() async {
     if (await confirmDelete(
@@ -335,7 +321,7 @@ class _SettingsState extends State<SettingsScreen> {
               title: const Text('Push alerts'),
               subtitle: Metadata(
                 widget.restoringPush
-                    ? 'Restoring alert preferences…'
+                    ? 'Checking alert settings…'
                     : widget.push.status,
               ),
               value: widget.push.enabled,
@@ -362,9 +348,9 @@ class _SettingsState extends State<SettingsScreen> {
         child: Column(
           children: [
             _SettingsRow(
-              DesignGlyph.privacy,
-              'Privacy and data',
-              onTap: () => _openDetails('Privacy and data', _privacyDetails),
+              DesignGlyph.info,
+              'About us',
+              onTap: () => _openDetails('About us', _aboutDetails),
             ),
             const Divider(height: 1, indent: 8, endIndent: 8),
             _SettingsRow(

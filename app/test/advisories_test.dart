@@ -55,9 +55,10 @@ void main() {
   ) async {
     FlutterSecureStorage.setMockInitialValues({'introSeen': 'true'});
     await PrivateStore().saveSelection(selection);
+    final checked = DateTime.now().toUtc().subtract(const Duration(minutes: 5));
     final repo = AdvisoryRepository()
       ..read = (_) async {
-        final data = snapshot();
+        final data = snapshot(checked: checked);
         (data['notices'] as List).add(<String, String>{
           ...(data['notices'] as List).first as Map<String, String>,
           'title': 'Earlier PRC announcement',
@@ -81,6 +82,11 @@ void main() {
     expect(repo.reads, [selection.examId]);
     expect(find.text('TEST ONLY postponement'), findsOneWidget);
     expect(find.text('Latest update'), findsOneWidget);
+    expect(
+      find.textContaining('Last checked: ${sourceTime(checked)}'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('(Philippine time)'), findsNothing);
     expect(
       tester
           .widget<SourceButton>(

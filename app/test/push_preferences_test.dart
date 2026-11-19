@@ -22,6 +22,6 @@ void main() {
     expect(await store.pendingPushDeletion(), isTrue);
     final restarted = PushPreferences(store: store);
     await restarted.restore();
-    expect(restarted.status, contains('Server deletion pending'));
+    expect(restarted.status, contains('Turning alerts off'));
   });
 }

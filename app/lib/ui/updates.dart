@@ -122,7 +122,7 @@ class _UpdatesState extends State<UpdatesScreen> {
       feed.end.subtract(const Duration(microseconds: 1)).add(philippineOffset),
     );
     final window =
-        'All sittings · PRC archive checked $first – $through (Philippine time)';
+        'All sittings · PRC archive checked $first – $through · Last checked: ${sourceTime(last)}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

@@ -135,7 +135,12 @@ void main() {
           FlutterSecureStorage.setMockInitialValues({'introSeen': 'true'});
           await PrivateStore().saveSelection(selection);
           final repo = AdvisoryRepository()
-            ..read = (_) async => AdvisoryFeed.fromJson(snapshot());
+            ..read = (_) async => AdvisoryFeed.fromJson(
+              snapshot(
+                stale: true,
+                checked: DateTime.utc(2026, 7, 31, 12, 30),
+              ),
+            );
           await tester.pumpWidget(
             ExamApp(
               repository: repo,
