@@ -3,11 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../domain/bookmark.dart';
 import '../domain/models.dart';
+import '../storage/bookmark_library.dart';
 import 'design.dart';
 import 'source_viewer.dart';
 
-const privacyDisclosure = '''ResView saves your selected exam on this device so you can return to its official announcements and result lists.
+const privacyDisclosure = '''ResView saves your selected exam and your bookmarks on this device so you can return to official announcements and result lists.
 
 Opening an official source connects to PRC or Google Drive and requires internet access. Google Drive handles searches made in its document viewer. ResView does not save that search text.
 
@@ -144,9 +146,19 @@ Uri _articleIdentity(Uri uri) {
 }
 
 class SourceLinks extends StatelessWidget {
-  const SourceLinks(this.version, {this.publications = const [], super.key});
+  const SourceLinks(
+    this.version, {
+    this.publications = const [],
+    this.bookmarks,
+    this.examId,
+    this.examName,
+    this.sittingLabel,
+    super.key,
+  });
   final ResultVersion? version;
   final List<Publication> publications;
+  final BookmarkLibrary? bookmarks;
+  final String? examId, examName, sittingLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -171,6 +183,7 @@ class SourceLinks extends StatelessWidget {
           _article(
             context,
             featured ?? const [],
+            version: version,
             url: url,
             fallback: url != null ? document : null,
           ),
@@ -179,25 +192,72 @@ class SourceLinks extends StatelessWidget {
           Heading(
             featured == null ? 'Official sources' : 'Additional official list',
           ),
+          if (bookmarks != null && examId != null && examName != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: BookmarkToggleButton(
+                library: bookmarks!,
+                item: _bookmarkItem(
+                  document,
+                  version: version,
+                  fallbackTitle: 'Official successful-examinee list',
+                )!,
+              ),
+            ),
           OfficialSourceLinks(
             documents: {document: 'successful-examinee list'},
           ),
         ],
         if (history.isNotEmpty) ...[
           const Heading('Other result publications'),
-          for (final article in history.values) _article(context, article),
+          for (final article in history.values)
+            _article(context, article, version: version),
         ],
       ],
+    );
+  }
+
+  BookmarkItem? _bookmarkItem(
+    Uri uri, {
+    Publication? article,
+    ResultVersion? version,
+    String? fallbackTitle,
+  }) {
+    final id = article?.id ??
+        (version == null
+            ? uri.toString()
+            : '${version.selection.examId}:${version.selection.sittingId}:${version.selection.categoryId}:${version.documentVersion}');
+    if (bookmarks == null || examId == null || examName == null) return null;
+    return BookmarkItem(
+      id: id,
+      kind: BookmarkKind.result,
+      examId: examId!,
+      examName: examName!,
+      title: article?.title ?? fallbackTitle ?? 'Official result publication',
+      url: uri,
+      publishedAtUtc: article?.publishedAtUtc,
+      savedAtUtc: DateTime.now().toUtc(),
+      sittingLabel: sittingLabel,
     );
   }
 
   Widget _article(
     BuildContext context,
     List<Publication> records, {
+    ResultVersion? version,
     Uri? url,
     Uri? fallback,
   }) {
     final article = records.firstOrNull;
+    final bookmarkUrl = article?.url ?? url ?? fallback;
+    final bookmark = bookmarkUrl == null
+        ? null
+        : _bookmarkItem(
+            bookmarkUrl,
+            article: article,
+            version: version,
+            fallbackTitle: 'Official result publication',
+          );
     final documents = <Uri, String>{};
     for (final record in records) {
       for (final link in record.documents.entries) {
@@ -211,12 +271,40 @@ class SourceLinks extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (article != null) ...[
-              Text(
-                article.title,
-                style: Theme.of(context).textTheme.titleSmall,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      article.title,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  if (bookmark != null)
+                    BookmarkToggleButton(
+                      library: bookmarks!,
+                      item: bookmark,
+                    ),
+                ],
               ),
               const SizedBox(height: 4),
               Metadata('Published: ${sourceTime(article.publishedAtUtc)}'),
+              const SizedBox(height: 8),
+            ] else if (bookmark != null) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Official result publication',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  BookmarkToggleButton(
+                    library: bookmarks!,
+                    item: bookmark,
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
             ],
             OfficialSourceLinks(
@@ -265,38 +353,42 @@ class SourceButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final style = ButtonStyle(
-      minimumSize: const WidgetStatePropertyAll(Size.fromHeight(48)),
-      shape: const WidgetStatePropertyAll(
-        RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(13)),
-        ),
+    final outlinedStyle = ButtonStyle(
+      foregroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? colors.onSurfaceVariant
+            : colors.primary,
       ),
-      padding: const WidgetStatePropertyAll(
-        EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      ),
-      textStyle: WidgetStatePropertyAll(theme.textTheme.labelLarge),
+      side: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.focused)) {
+          return BorderSide(color: colors.primary, width: 2);
+        }
+        if (states.contains(WidgetState.disabled)) {
+          return BorderSide(color: colors.outlineVariant);
+        }
+        return BorderSide(color: colors.primary.withValues(alpha: 0.4));
+      }),
     );
     final content = Row(
       children: [
         DesignIcon(
           filled ? DesignGlyph.listChecks : DesignGlyph.document,
-          size: 22,
+          size: 20,
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(child: Text(label)),
-        const SizedBox(width: 10),
-        const DesignIcon(DesignGlyph.externalLink, size: 22),
+        const SizedBox(width: 8),
+        const DesignIcon(DesignGlyph.externalLink, size: 20),
       ],
     );
     void open() => openSource(context, uri);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: filled
-          ? FilledButton(onPressed: open, style: style, child: content)
+          ? FilledButton(onPressed: open, child: content)
           : OutlinedButton(
               onPressed: open,
-              style: style.copyWith(
+              style: outlinedStyle.copyWith(
                 foregroundColor: WidgetStatePropertyAll(colors.primary),
                 side: WidgetStateProperty.resolveWith(
                   (states) => BorderSide(
@@ -311,6 +403,57 @@ class SourceButton extends StatelessWidget {
             ),
     );
   }
+}
+
+class BookmarkToggleButton extends StatelessWidget {
+  const BookmarkToggleButton({
+    required this.library,
+    required this.item,
+    super.key,
+  });
+
+  final BookmarkLibrary library;
+  final BookmarkItem item;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: library,
+    builder: (context, _) {
+      final saved = library.contains(item);
+      final type = item.kind == BookmarkKind.announcement
+          ? 'announcement'
+          : 'result publication';
+      return IconButton(
+        tooltip: saved
+            ? 'Remove $type from bookmarks'
+            : 'Bookmark $type',
+        onPressed: library.loaded
+            ? () async {
+                try {
+                  await library.toggle(item);
+                  if (context.mounted) {
+                    feedback(
+                      context,
+                      saved ? 'Bookmark removed.' : 'Saved to bookmarks.',
+                    );
+                  }
+                } catch (_) {
+                  if (context.mounted) {
+                    feedback(
+                      context,
+                      'Bookmark could not be updated. Try again.',
+                    );
+                  }
+                }
+              }
+            : null,
+        icon: DesignIcon(
+          saved ? DesignGlyph.bookmarked : DesignGlyph.bookmark,
+          color: saved ? Theme.of(context).colorScheme.primary : null,
+        ),
+      );
+    },
+  );
 }
 
 Future<void> openSource(

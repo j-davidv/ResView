@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../domain/models.dart';
+import '../storage/bookmark_library.dart';
 import 'design.dart';
 import 'shared.dart';
 
@@ -8,6 +9,10 @@ class ResultsScreen extends StatelessWidget {
   const ResultsScreen({
     required this.version,
     this.publications = const [],
+    this.bookmarks,
+    this.examId,
+    this.examName,
+    this.sittingLabel,
     this.loading = false,
     this.onRetry,
     super.key,
@@ -16,6 +21,8 @@ class ResultsScreen extends StatelessWidget {
   final VoidCallback? onRetry;
   final bool loading;
   final List<Publication> publications;
+  final BookmarkLibrary? bookmarks;
+  final String? examId, examName, sittingLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +62,14 @@ class ResultsScreen extends StatelessWidget {
               ? OutlinedButton(onPressed: onRetry, child: const Text('Retry'))
               : null,
         ),
-        SourceLinks(current, publications: publications),
+        SourceLinks(
+          current,
+          publications: publications,
+          bookmarks: bookmarks,
+          examId: examId,
+          examName: examName,
+          sittingLabel: sittingLabel,
+        ),
       ],
     );
   }

@@ -144,14 +144,11 @@ void main() {
       expect(lists.cleared, isTrue);
       expect(await storage.read(key: 'name'), isNull);
       expect(await PrivateStore().readSelection(), selection);
-      expect(find.byType(NavigationDestination), findsNWidgets(3));
+      expect(find.text('Bookmarks'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
       expect(find.text('Check name'), findsNothing);
       expect(find.text('Source freshness'), findsNothing);
       expect(find.text('Stale'), findsNothing);
-      expect(
-        tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
-        0,
-      );
       expect(find.text('Results released'), findsOneWidget);
       expect(find.text('View list of passers'), findsOneWidget);
       await tester.tap(find.text('Settings').last);

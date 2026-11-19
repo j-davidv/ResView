@@ -11,7 +11,9 @@ import 'data/firestore_repository.dart';
 import 'domain/models.dart';
 import 'storage/private_store.dart';
 import 'storage/list_store.dart';
+import 'storage/bookmark_library.dart';
 import 'ui/design.dart';
+import 'ui/bookmarks.dart';
 import 'ui/exam_selection.dart';
 import 'ui/launch.dart';
 import 'ui/results.dart';
@@ -84,12 +86,14 @@ class _ExamHome extends StatefulWidget {
 
 class _ExamHomeState extends State<_ExamHome> {
   final _store = PrivateStore();
+  late final _bookmarks = BookmarkLibrary(_store);
   late final _lists = widget.lists ?? ListStore();
   late final _push = PushPreferences(store: _store);
   int _destination = 0, _generation = 0;
   int _advisoryRevision = 0;
   bool get _inUpdates => widget.advisoryPilot && _destination == 1;
-  bool get _inSettings => _destination == (widget.advisoryPilot ? 2 : 1);
+  bool get _inBookmarks => _destination == (widget.advisoryPilot ? 2 : 1);
+  bool get _inSettings => _destination == (widget.advisoryPilot ? 3 : 2);
   SelectedExam? _selected;
   ResultVersion? _version;
   List<Publication> _publications = [];
@@ -106,6 +110,7 @@ class _ExamHomeState extends State<_ExamHome> {
     super.initState();
     _restoreLaunch();
     _restorePush();
+    _restoreBookmarks();
   }
 
   Future<void> _restoreLaunch() async {
@@ -197,6 +202,8 @@ class _ExamHomeState extends State<_ExamHome> {
     }
   }
 
+  Future<void> _restoreBookmarks() => _bookmarks.load();
+
   Future<void> _restorePush() async {
     try {
       await _push.restore();
@@ -246,6 +253,7 @@ class _ExamHomeState extends State<_ExamHome> {
   void dispose() {
     _launchProgress?.cancel();
     _push.dispose();
+    _bookmarks.dispose();
     super.dispose();
   }
 
@@ -356,19 +364,23 @@ class _ExamHomeState extends State<_ExamHome> {
         examDetails: _selected?.details,
         restoringPush: _restoringPush,
         onChange: _change,
-        onLocalDeleted: () => setState(() {
-          _selected = null;
-          _version = null;
-          _publications = [];
-          _generation++;
-          _restoringSelection = false;
-          _selectionToRetry = null;
-          _loading = false;
-          _failed = false;
-          _localError = null;
-        }),
+        onLocalDeleted: () {
+          setState(() {
+            _selected = null;
+            _version = null;
+            _publications = [];
+            _generation++;
+            _restoringSelection = false;
+            _selectionToRetry = null;
+            _loading = false;
+            _failed = false;
+            _localError = null;
+          });
+          unawaited(_bookmarks.load());
+        },
       );
     }
+    if (_inBookmarks) return BookmarksScreen(library: _bookmarks);
     if (_restoringSelection) {
       return const Notice(
         'Loading official information',
@@ -381,9 +393,11 @@ class _ExamHomeState extends State<_ExamHome> {
     if (_selected == null) return const SizedBox.shrink();
     if (_inUpdates) {
       return UpdatesScreen(
-        examTitle: _selected!.exam.title,
         repository: widget.repository,
         selection: _selected!.selection,
+        examId: _selected!.exam.id,
+        examTitle: _selected!.exam.title,
+        bookmarks: _bookmarks,
         revision: _advisoryRevision,
       );
     }
@@ -391,6 +405,10 @@ class _ExamHomeState extends State<_ExamHome> {
     return ResultsScreen(
       version: _version,
       publications: _publications,
+      bookmarks: _bookmarks,
+      examId: _selected!.exam.id,
+      examName: _selected!.exam.title,
+      sittingLabel: _selected!.details,
       loading: _loading && !hasPrevious,
       onRetry: _failed && !hasPrevious ? _refresh : null,
     );
@@ -416,10 +434,10 @@ class _ExamHomeState extends State<_ExamHome> {
       examDetails: _selected?.details,
       restoringSelection: _restoringSelection,
       onChoose: _change,
-      canRefresh: _selected != null && !_inSettings,
+      canRefresh: _selected != null && !_inSettings && !_inBookmarks,
       onRefresh: _inUpdates
           ? () => setState(() => _advisoryRevision++)
-          : _loading
+          : _inBookmarks || _loading
           ? null
           : _refresh,
       child: Column(

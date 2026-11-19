@@ -37,7 +37,11 @@ void main() {
       }
       expect(find.text('Choose exam'), findsOneWidget);
       expect(find.text('Updates'), findsOneWidget);
+      expect(find.text('Bookmarks'), findsOneWidget);
       expect(find.text('Results'), findsWidgets);
+      await tester.tap(find.text('Bookmarks').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Nothing saved yet'), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
     }
     await tester.pumpWidget(ExamApp(listStore: TestListStore()));
@@ -45,6 +49,7 @@ void main() {
     expect(find.text('How ResView works'), findsNothing);
     expect(find.text('Choose exam'), findsOneWidget);
     expect(find.text('Updates'), findsOneWidget);
+    expect(find.text('Bookmarks'), findsOneWidget);
     expect(find.text('Results'), findsWidgets);
   });
 
@@ -68,6 +73,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Sign up'), findsNothing);
       expect(find.textContaining('Demo data'), findsNothing);
+      await tester.tap(find.text('Bookmarks').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Nothing saved yet'), findsOneWidget);
       await tester.tap(find.text('Settings').last);
       await tester.pumpAndSettle();
       expect(find.text('About us'), findsOneWidget);
@@ -111,7 +119,7 @@ void main() {
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     await tester.pumpWidget(ExamApp(listStore: TestListStore()));
     await tester.pumpAndSettle();
-    for (final title in ['Updates', 'Settings', 'Results']) {
+    for (final title in ['Updates', 'Bookmarks', 'Settings', 'Results']) {
       final tab = find.text(title).last;
       await tester.ensureVisible(tab);
       await tester.tap(tab);

@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/exam_repository.dart';
+import '../domain/bookmark.dart';
 import '../domain/models.dart';
+import '../storage/bookmark_library.dart';
 import 'design.dart';
 import 'shared.dart';
 
@@ -11,12 +13,16 @@ class UpdatesScreen extends StatefulWidget {
   const UpdatesScreen({
     required this.repository,
     required this.selection,
+    this.examId,
+    this.bookmarks,
     this.examTitle,
     required this.revision,
     super.key,
   });
   final ExamRepository repository;
   final ExamSelection selection;
+  final String? examId;
+  final BookmarkLibrary? bookmarks;
   final String? examTitle;
   final int revision;
 
@@ -147,7 +153,12 @@ class _UpdatesState extends State<UpdatesScreen> {
         else ...[
           const Heading('Latest update', top: 8),
           Metadata(window),
-          _UpdateCard(feed.notices.first),
+          _UpdateCard(
+            item: feed.notices.first,
+            examId: widget.examId,
+            examName: widget.examTitle ?? widget.examId,
+            bookmarks: widget.bookmarks,
+          ),
           const SizedBox(height: 12),
           OutlinedButton(
             onPressed: () => Navigator.of(context).push(
@@ -179,7 +190,12 @@ class _UpdatesState extends State<UpdatesScreen> {
                                       ),
                                   ],
                                 )
-                              : _UpdateCard(feed.notices[index - 1]),
+                              : _UpdateCard(
+                                  item: feed.notices[index - 1],
+                                  examId: widget.examId,
+                                  examName: widget.examTitle ?? widget.examId,
+                                  bookmarks: widget.bookmarks,
+                                ),
                         ),
                       ),
                     ),
@@ -196,25 +212,65 @@ class _UpdatesState extends State<UpdatesScreen> {
 }
 
 class _UpdateCard extends StatelessWidget {
-  const _UpdateCard(this.item);
+  const _UpdateCard({
+    required this.item,
+    this.examId,
+    this.examName,
+    this.bookmarks,
+  });
+
   final ExamUpdate item;
+  final String? examId, examName;
+  final BookmarkLibrary? bookmarks;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 12),
-    child: DesignCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Metadata(
-            'Posted ${dateLabel(item.posted.add(const Duration(hours: 8)))}',
-          ),
-          Text(item.title, style: Theme.of(context).textTheme.titleSmall),
-          if (item.audience.isNotEmpty) Metadata(item.audience),
-          const SizedBox(height: 8),
-          SourceButton('Open PRC notice', item.url),
-        ],
+  Widget build(BuildContext context) {
+    final canonicalUrl = item.url.replace(
+      host: item.url.host == 'prc.gov.ph' || item.url.host == 'www.prc.gov.ph'
+          ? 'www.prc.gov.ph'
+          : item.url.host.toLowerCase(),
+    );
+    final bookmark = examId == null || examName == null
+        ? null
+        : BookmarkItem(
+            id: canonicalUrl.toString(),
+            kind: BookmarkKind.announcement,
+            examId: examId!,
+            examName: examName!,
+            title: item.title,
+            url: item.url,
+            publishedAtUtc: item.posted,
+            savedAtUtc: DateTime.now().toUtc(),
+          );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: DesignCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Metadata(
+              'Posted ${dateLabel(item.posted.add(const Duration(hours: 8)))}',
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    item.title,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                if (bookmarks != null && bookmark != null)
+                  BookmarkToggleButton(library: bookmarks!, item: bookmark),
+              ],
+            ),
+            if (item.audience.isNotEmpty) Metadata(item.audience),
+            const SizedBox(height: 8),
+            SourceButton('Open PRC notice', item.url),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
