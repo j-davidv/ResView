@@ -1,0 +1,34 @@
+name: Release 2 PRC reachability
+on:
+  push:
+    branches: [release-2-hosted-check]
+    paths: [.github/workflows/release-2-hosted-check.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from worker.source import SourcePolicy, fetch
+          root = 'https://www.prc.gov.ph'
+          policy_config = json.loads(Path('worker/config.json').read_text())['sourcePolicy']
+          routes = ['/archives/2026', '/archives/2026/202607']
+          policy_config.setdefault('exactRoutes', {}).setdefault('www.prc.gov.ph', []).extend(routes)
+          policy = SourcePolicy(policy_config)
+
+          def bounded(url, policy, *, limit):
+              return fetch(url, policy, limit=limit, budget=20)
+
+          policy.load_robots(bounded)
+          for route in [*routes, '/article/rescheduling-landscape-architects-licensure-examination']:
+              body = bounded(root + route, policy, limit=2 * 1024 * 1024)
+              print(route, len(body), flush=True)
+          PY
