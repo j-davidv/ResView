@@ -63,6 +63,7 @@ private class SourceView(context: Context, messenger: BinaryMessenger, id: Int, 
             setSupportZoom(true)
             builtInZoomControls = true
             displayZoomControls = false
+            useWideViewPort = true
             @Suppress("DEPRECATION")
             saveFormData = false
         }
@@ -97,7 +98,18 @@ private class SourceView(context: Context, messenger: BinaryMessenger, id: Int, 
             }
 
             override fun onPageFinished(view: WebView, url: String) {
-                if (!failed && url == currentUrl) event("loaded", url)
+                if (!failed && url == currentUrl) {
+                    if (Uri.parse(url).host == "drive.google.com") {
+                        // Drive's mobile preview disables pinch zoom in its viewport.
+                        view.evaluateJavascript("""
+                            (() => {
+                              const viewport = document.querySelector('meta[name="viewport"]');
+                              if (viewport) viewport.content = 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5, user-scalable=yes';
+                            })()
+                        """.trimIndent(), null)
+                    }
+                    event("loaded", url)
+                }
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
