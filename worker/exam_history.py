@@ -204,7 +204,8 @@ def hosted_transport(url, _address, limit, timeout):
     connection = http.client.HTTPSConnection('erlnuyltaudetjpriosu.supabase.co', timeout=timeout)
     try:
         connection.request('GET', '/functions/v1/prc-archive?' + query,
-                           headers={'Authorization': 'Bearer ' + os.environ['PRC_ARCHIVE_TOKEN']})
+                           headers={'Authorization': 'Bearer ' + os.environ['PRC_ARCHIVE_TOKEN'],
+                                    'x-region': 'ap-southeast-1'})
         response = connection.getresponse()
         if response.status == 502:
             return 502, {}, b''
@@ -226,7 +227,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cache', required=True, type=Path)
     parser.add_argument('--hosted-source', action='store_true')
-    parser.add_argument('--publish-demo', action='store_true')
+    destination = parser.add_mutually_exclusive_group()
+    destination.add_argument('--publish-demo', action='store_true')
+    destination.add_argument('--publish-live', action='store_true')
     parser.add_argument('--seed-catalog', action='store_true', help='Also initialize the demo picker catalog.')
     args = parser.parse_args()
     now = datetime.now(timezone.utc)
@@ -238,6 +241,15 @@ def main():
         if (os.environ.get('FIRESTORE_EMULATOR_HOST', '').split(':')[0] not in ('127.0.0.1', 'localhost')
                 or os.environ.get('FIREBASE_PROJECT_ID') != 'demo-resview-advisories'):
             raise SourceError('Exam history publication requires the local demo emulator.')
+        from worker.providers import Providers
+        provider = Providers.from_environment()
+    if args.publish_live:
+        if (not args.hosted_source or os.environ.get('FIRESTORE_EMULATOR_HOST')
+                or os.environ.get('FIREBASE_PROJECT_ID') != 'resview-9240c'
+                or os.environ.get('GITHUB_ACTIONS') != 'true'
+                or os.environ.get('GITHUB_WORKFLOW_REF') !=
+                'j-davidv/ResView/.github/workflows/monitor.yml@refs/heads/main'):
+            raise SourceError('Live history publication requires the production GitHub workflow.')
         from worker.providers import Providers
         provider = Providers.from_environment()
     if args.hosted_source and not os.environ.get('PRC_ARCHIVE_TOKEN'):
