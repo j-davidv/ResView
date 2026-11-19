@@ -16,11 +16,15 @@ Philippine board-exam takers browse official PRC announcements and successful-ex
 
 ## Constraints
 
-No browsing signup, mandatory name entry, ratings access, extra dashboard, fictional runtime data, or simulated success. Three destinations: Updates, Results, Settings. All exams in the official catalog retain their official source links independently of legacy name-validation status. The app does not save names or download lists for automatic matching. Upgrades delete previously saved checker names and list files. Manual Drive search sends search text to Google and requires a connection. Initial Android Studio milestone precedes public deployment. Spend nothing; do not enable billing.
+No browsing signup, mandatory name entry, ratings access, extra dashboard, fictional runtime data, or simulated success. Results is the landing screen. Settings holds exam selection, preferences and privacy controls. All exams in the official catalog retain their official source links independently of legacy name-validation status. The app does not save names or download lists for automatic matching. Upgrades delete previously saved checker names and list files. Manual Drive search sends search text to Google and requires a connection. Initial Android Studio milestone precedes public deployment. Spend nothing; do not enable billing.
+
+## Exam updates
+
+Updates follows the selected exam across sittings. The latest official post includes its PRC date and source. View all updates opens the complete verified history, including the latest post, newest first. Coverage begins with posts dated January 1, 2026 in Philippine time. Reading notices leaves Results unchanged. Normal builds enable Updates and read the live public Firestore catalog in `resview-9240c` without extra run arguments. The emulator-only entry point remains available for isolated tests.
 
 ## Evidence
 
-Authoritative spec and implementation plan copied to docs/superpowers. Empty repository at start of implementation. No PRC retrieval or provider setup performed. Physical device and live-service evidence must be reported separately.
+Authoritative specifications and implementation plans are under `docs/superpowers`. Live catalog and hosted archive-refresh evidence are recorded in `docs/source-access.md`. Physical device checks and signed-release acceptance remain separate from widget test results.
 
 ## Accessibility
 
