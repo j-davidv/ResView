@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:app/data/exam_repository.dart';
@@ -10,11 +11,13 @@ import 'package:app/storage/private_store.dart';
 import 'package:app/ui/design.dart';
 import 'package:app/ui/history.dart';
 import 'package:app/ui/results.dart';
-import 'package:app/ui/shared.dart';
 import 'package:app/ui/updates.dart';
+import 'package:flutter/foundation.dart' show debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:url_launcher_platform_interface/link.dart' show LinkDelegate;
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 const _selection = ExamSelection('exam-test', 'sitting-test', 'general');
 final _announcementUrl =
@@ -54,6 +57,46 @@ AdvisoryFeed _feed() => AdvisoryFeed.fromJson({
         },
       ],
     });
+
+class _SuccessfulUrlLauncher extends UrlLauncherPlatform {
+  @override
+  LinkDelegate? get linkDelegate => null;
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async => true;
+}
+
+VoidCallback _useSuccessfulExternalLauncher(WidgetTester tester) {
+  final originalPlatform = debugDefaultTargetPlatformOverride;
+  final originalLauncher = UrlLauncherPlatform.instance;
+  debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+  UrlLauncherPlatform.instance = _SuccessfulUrlLauncher();
+  return () {
+    debugDefaultTargetPlatformOverride = originalPlatform;
+    UrlLauncherPlatform.instance = originalLauncher;
+  };
+}
+
+class _DelayedHistoryStore extends PrivateStore {
+  _DelayedHistoryStore(this.initial);
+
+  final List<HistoryEntry> initial;
+  final readStarted = Completer<void>();
+  final releaseRead = Completer<void>();
+  List<HistoryEntry> saved = [];
+
+  @override
+  Future<List<HistoryEntry>> readHistory() async {
+    readStarted.complete();
+    await releaseRead.future;
+    return initial;
+  }
+
+  @override
+  Future<void> saveHistory(List<HistoryEntry> items) async {
+    saved = List.of(items);
+  }
+}
 
 class _Repository implements ExamRepository {
   @override
@@ -118,6 +161,38 @@ void main() {
       expect(await reopened.readHistory(), isEmpty);
     },
   );
+
+  test('records views received while history is loading', () async {
+    final existing = _historyEntry(
+      kind: HistoryKind.announcement,
+      sourceId: 'already-stored',
+      title: 'Previously viewed',
+      url: _announcementUrl,
+      viewedAtUtc: DateTime.utc(2026, 11, 1),
+    );
+    final opened = _historyEntry(
+      kind: HistoryKind.result,
+      sourceId: 'opened-during-load',
+      title: 'Opened during load',
+      url: _resultUrl,
+    );
+    final store = _DelayedHistoryStore([existing]);
+    final library = HistoryLibrary(store);
+
+    final loading = library.load();
+    await store.readStarted.future;
+    await library.record(opened);
+    expect(library.loaded, isFalse);
+    store.releaseRead.complete();
+    await loading;
+
+    expect(library.items.map((item) => item.sourceId), [
+      'opened-during-load',
+      'already-stored',
+    ]);
+    expect(store.saved.map((item) => item.sourceId), contains('already-stored'));
+    library.dispose();
+  });
 
   test(
     'malformed history storage remains intact and reports a load error',
@@ -200,6 +275,7 @@ void main() {
   testWidgets(
     'opening an announcement from updates records it in viewing history',
     (tester) async {
+      final restorePlatform = _useSuccessfulExternalLauncher(tester);
       final history = HistoryLibrary(PrivateStore());
       await history.load();
 
@@ -226,6 +302,7 @@ void main() {
 
       await tester.tap(find.text('Open PRC notice'));
       await tester.pumpAndSettle();
+      restorePlatform();
 
       expect(history.items, hasLength(1));
       expect(history.items.single.kind, HistoryKind.announcement);
@@ -238,6 +315,7 @@ void main() {
   testWidgets(
     'opening a result publication records it in viewing history',
     (tester) async {
+      final restorePlatform = _useSuccessfulExternalLauncher(tester);
       final history = HistoryLibrary(PrivateStore());
       await history.load();
 
@@ -270,6 +348,7 @@ void main() {
 
       await tester.tap(find.text('PRC announcement'));
       await tester.pumpAndSettle();
+      restorePlatform();
 
       expect(history.items, hasLength(1));
       expect(history.items.single.kind, HistoryKind.result);

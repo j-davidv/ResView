@@ -60,7 +60,8 @@ class ExamShell extends StatelessWidget {
       final bookmarks = destination == (advisoryPilot ? 2 : 1);
       final inHistory = destination == (advisoryPilot ? 3 : 2);
       final settings = destination == _titles.length - 1;
-      final showContext = !settings && !bookmarks && !inHistory && !restoringSelection;
+      final showContext =
+          !settings && !bookmarks && !inHistory && !restoringSelection;
       final contextCard = ExamContextCard(
         title: examTitle,
         details: examDetails,
@@ -283,70 +284,75 @@ class ExamShell extends StatelessWidget {
       color: colors.surface,
       child: SafeArea(
         top: false,
-        child: Wrap(
-          children: [
-            for (final (index, title) in _titles.indexed)
-              SizedBox(
-                width: fits
-                    ? wordWidths[index] + (width - total) / _titles.length
-                    : width / 2,
-                child: Semantics(
-                  button: true,
-                  selected: destination == index,
-                  inMutuallyExclusiveGroup: true,
-                  child: InkWell(
-                    onTap: () => onNavigate(index),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 8,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: destination == index
-                                  ? colors.primaryContainer
-                                  : Colors.transparent,
-                              borderRadius: const BorderRadius.all(
-                                Radius.circular(16),
-                              ),
-                            ),
-                            alignment: Alignment.center,
-                            child: DesignIcon(
-                              _glyphs[index],
-                              color: destination == index
-                                  ? colors.primary
-                                  : colors.onSurfaceVariant,
-                            ),
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.32,
+          child: SingleChildScrollView(
+            child: Wrap(
+              children: [
+                for (final (index, title) in _titles.indexed)
+                  SizedBox(
+                    width: fits
+                        ? wordWidths[index] + (width - total) / _titles.length
+                        : width / 2,
+                    child: Semantics(
+                      button: true,
+                      selected: destination == index,
+                      inMutuallyExclusiveGroup: true,
+                      child: InkWell(
+                        onTap: () => onNavigate(index),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 8,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            title,
-                            textAlign: TextAlign.center,
-                            style:
-                                designType(
-                                  12,
-                                  16,
-                                  destination == index
-                                      ? FontWeight.w600
-                                      : FontWeight.w500,
-                                ).copyWith(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 64,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: destination == index
+                                      ? colors.primaryContainer
+                                      : Colors.transparent,
+                                  borderRadius: const BorderRadius.all(
+                                    Radius.circular(16),
+                                  ),
+                                ),
+                                alignment: Alignment.center,
+                                child: DesignIcon(
+                                  _glyphs[index],
                                   color: destination == index
                                       ? colors.primary
                                       : colors.onSurfaceVariant,
                                 ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                title,
+                                textAlign: TextAlign.center,
+                                style:
+                                    designType(
+                                      12,
+                                      16,
+                                      destination == index
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                    ).copyWith(
+                                      color: destination == index
+                                          ? colors.primary
+                                          : colors.onSurfaceVariant,
+                                    ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );

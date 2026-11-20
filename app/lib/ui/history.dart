@@ -164,8 +164,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
   ) {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
-    final yesterdayStart = todayStart.subtract(const Duration(days: 1));
-    final weekStart = todayStart.subtract(Duration(days: now.weekday - 1));
+    final yesterdayStart = DateTime(now.year, now.month, now.day - 1);
+    final weekStart = DateTime(
+      now.year,
+      now.month,
+      now.day - now.weekday + 1,
+    );
 
     final today = <HistoryEntry>[];
     final yesterday = <HistoryEntry>[];
@@ -274,7 +278,7 @@ class _HistoryCard extends StatelessWidget {
     final local = viewedAtUtc.toLocal();
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
-    final yesterdayStart = todayStart.subtract(const Duration(days: 1));
+    final yesterdayStart = DateTime(now.year, now.month, now.day - 1);
     final localDate = DateTime(local.year, local.month, local.day);
 
     final timeStr =

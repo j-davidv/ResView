@@ -95,11 +95,24 @@ class PrivateStore {
 
   Future<void> clearHistory() => _storage.delete(key: 'history');
 
-  Future<void> clearLocalValues() async {
+  Future<void> clearLocalValues({
+    Future<void> Function()? clearBookmarks,
+    Future<void> Function()? clearHistory,
+  }) async {
     await deleteName();
     await _storage.delete(key: 'selection');
-    await _storage.delete(key: 'bookmarks');
-    await _storage.delete(key: 'history');
+    // Libraries serialize these deletions with their pending writes and clear
+    // their in-memory lists only after storage has been updated.
+    if (clearBookmarks == null) {
+      await _storage.delete(key: 'bookmarks');
+    } else {
+      await clearBookmarks();
+    }
+    if (clearHistory == null) {
+      await _storage.delete(key: 'history');
+    } else {
+      await clearHistory();
+    }
   }
 
   // Preserve the deletion intent and Firebase identity until server acknowledgement.

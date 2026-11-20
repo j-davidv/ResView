@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../domain/bookmark.dart';
+import '../domain/history.dart';
 import '../domain/models.dart';
 import '../storage/bookmark_library.dart';
+import '../storage/history_library.dart';
 import 'design.dart';
 import 'shared.dart';
 
 enum _BookmarkFilter { all, announcements, results }
 
 class BookmarksScreen extends StatefulWidget {
-  const BookmarksScreen({required this.library, super.key});
+  const BookmarksScreen({
+    required this.library,
+    this.historyLibrary,
+    super.key,
+  });
 
   final BookmarkLibrary library;
+  final HistoryLibrary? historyLibrary;
 
   @override
   State<BookmarksScreen> createState() => _BookmarksScreenState();
@@ -101,7 +108,11 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             )
           else
             for (final item in visible)
-              _BookmarkCard(item: item, library: widget.library),
+              _BookmarkCard(
+                item: item,
+                library: widget.library,
+                historyLibrary: widget.historyLibrary,
+              ),
         ],
       );
     },
@@ -109,10 +120,15 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
 }
 
 class _BookmarkCard extends StatelessWidget {
-  const _BookmarkCard({required this.item, required this.library});
+  const _BookmarkCard({
+    required this.item,
+    required this.library,
+    required this.historyLibrary,
+  });
 
   final BookmarkItem item;
   final BookmarkLibrary library;
+  final HistoryLibrary? historyLibrary;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -161,7 +177,24 @@ class _BookmarkCard extends StatelessWidget {
           if (item.publishedAtUtc case final published?)
             Metadata('Published ${dateLabel(published.toUtc().add(const Duration(hours: 8)))}'),
           const SizedBox(height: 8),
-          SourceButton('Open official source', item.url),
+          SourceButton(
+            'Open official source',
+            item.url,
+            historyLibrary: historyLibrary,
+            historyEntry: HistoryEntry(
+              sourceId: item.id,
+              kind: item.kind == BookmarkKind.announcement
+                  ? HistoryKind.announcement
+                  : HistoryKind.result,
+              examId: item.examId,
+              examName: item.examName,
+              title: item.title,
+              url: item.url,
+              publishedAtUtc: item.publishedAtUtc,
+              viewedAtUtc: DateTime.now().toUtc(),
+              sittingLabel: item.sittingLabel,
+            ),
+          ),
         ],
       ),
     ),

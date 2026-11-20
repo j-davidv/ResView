@@ -365,6 +365,8 @@ class _ExamHomeState extends State<_ExamHome> {
       return SettingsScreen(
         store: _store,
         lists: _lists,
+        bookmarks: _bookmarks,
+        history: _history,
         push: _push,
         selection: _selected?.selection,
         examTitle: _selected?.exam.title,
@@ -383,12 +385,15 @@ class _ExamHomeState extends State<_ExamHome> {
             _failed = false;
             _localError = null;
           });
-          unawaited(_bookmarks.load());
-          unawaited(_history.load());
         },
       );
     }
-    if (_inBookmarks) return BookmarksScreen(library: _bookmarks);
+    if (_inBookmarks) {
+      return BookmarksScreen(
+        library: _bookmarks,
+        historyLibrary: _history,
+      );
+    }
     if (_inHistory) return HistoryScreen(library: _history);
     if (_restoringSelection) {
       return const Notice(

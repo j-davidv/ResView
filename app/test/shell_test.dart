@@ -92,6 +92,11 @@ void main() {
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await tester.pumpWidget(ExamApp(listStore: TestListStore()));
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Settings').last,
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
       await tester.tap(find.text('Settings').last);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);

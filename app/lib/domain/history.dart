@@ -92,4 +92,16 @@ class HistoryEntry {
     publishedAtUtc: publishedAtUtc,
     sittingLabel: sittingLabel,
   );
+
+  HistoryEntry withUrl(Uri url) => HistoryEntry(
+    sourceId: sourceId,
+    kind: kind,
+    examId: examId,
+    examName: examName,
+    title: title,
+    url: url,
+    viewedAtUtc: viewedAtUtc,
+    publishedAtUtc: publishedAtUtc,
+    sittingLabel: sittingLabel,
+  );
 }

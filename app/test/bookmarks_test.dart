@@ -200,7 +200,7 @@ void main() {
     await tester.tap(find.byTooltip('Bookmark result publication'));
     await tester.pumpAndSettle();
     expect(library.items.single.kind, BookmarkKind.result);
-    expect(library.items.single.id, 'publication-id');
+    expect(library.items.single.id, _resultUrl.toString());
     expect(library.items.single.url, _resultUrl);
     library.dispose();
   });

@@ -34,7 +34,7 @@ class BookmarkLibrary extends ChangeNotifier {
         completer.complete();
       } catch (_) {
         error = 'Saved bookmarks could not be loaded. Try again.';
-        completer.completeError(StateError(error!));
+        completer.complete();
       } finally {
         loading = false;
         notifyListeners();
@@ -75,6 +75,12 @@ class BookmarkLibrary extends ChangeNotifier {
       _sort();
     });
   }
+
+  Future<void> clearAll() => _mutate(() async {
+    await _store.saveBookmarks(const []);
+    _items = [];
+    loaded = true;
+  });
 
   Future<void> _mutate(Future<void> Function() change) {
     final completer = Completer<void>();

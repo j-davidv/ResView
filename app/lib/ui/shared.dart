@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +14,20 @@ import 'design.dart';
 import 'source_viewer.dart';
 
 final Map<BookmarkLibrary, Set<String>> _pendingBookmarks = {};
+final ValueNotifier<int> _bookmarkPendingRevision = ValueNotifier(0);
+
+void _notifyBookmarkPendingChanged() => _bookmarkPendingRevision.value++;
+
+Future<void> _recordOpenedSource(
+  HistoryLibrary library,
+  HistoryEntry entry,
+) async {
+  try {
+    await library.record(entry);
+  } catch (_) {
+    // HistoryLibrary exposes persistence failures through its error state.
+  }
+}
 
 const privacyDisclosure = '''ResView saves your selected exam, bookmarks, and viewing history on this device so you can return to official announcements and result lists.
 
@@ -408,7 +424,7 @@ class OfficialSourceLinks extends StatelessWidget {
           entry.key,
           filled: true,
           historyLibrary: historyLibrary,
-          historyEntry: documentsHistoryEntry,
+          historyEntry: documentsHistoryEntry?.withUrl(entry.key),
         ),
       if (publicationUrl != null)
         SourceButton(
@@ -473,7 +489,9 @@ class SourceButton extends StatelessWidget {
         context,
         uri,
         onOpened: historyLibrary != null && historyEntry != null
-            ? () => historyLibrary!.record(historyEntry!)
+            ? () => unawaited(
+                _recordOpenedSource(historyLibrary!, historyEntry!),
+              )
             : null,
       );
     }
@@ -513,7 +531,7 @@ class BookmarkToggleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: library,
+    animation: Listenable.merge([library, _bookmarkPendingRevision]),
     builder: (context, _) {
       final saved = library.contains(item);
       final pending = _pendingBookmarks[library]?.contains(item.key) ?? false;
@@ -526,7 +544,12 @@ class BookmarkToggleButton extends StatelessWidget {
             : 'Bookmark $type',
         onPressed: library.loaded && !pending
             ? () async {
-                _pendingBookmarks.putIfAbsent(library, () => <String>{}).add(item.key);
+                final pendingItems = _pendingBookmarks.putIfAbsent(
+                  library,
+                  () => <String>{},
+                );
+                if (!library.loaded || !pendingItems.add(item.key)) return;
+                _notifyBookmarkPendingChanged();
                 try {
                   final appliedSaved = await library.toggle(item);
                   if (context.mounted) {
@@ -543,8 +566,9 @@ class BookmarkToggleButton extends StatelessWidget {
                     );
                   }
                 } finally {
-                  _pendingBookmarks[library]?.remove(item.key);
-                  if (context.mounted) (context as Element).markNeedsBuild();
+                  pendingItems.remove(item.key);
+                  if (pendingItems.isEmpty) _pendingBookmarks.remove(library);
+                  _notifyBookmarkPendingChanged();
                 }
               }
             : null,

@@ -16,6 +16,7 @@ class HistoryLibrary extends ChangeNotifier {
   bool loading = true;
   bool loaded = false;
   String? error;
+  final Map<String, HistoryEntry> _pendingViews = {};
 
   List<HistoryEntry> get items => List.unmodifiable(_items);
 
@@ -23,35 +24,54 @@ class HistoryLibrary extends ChangeNotifier {
     loading = true;
     error = null;
     notifyListeners();
-    try {
-      _items = await _store.readHistory();
-      _sort();
-      loaded = true;
-    } catch (_) {
-      error = 'Viewing history could not be loaded. Try again.';
-    } finally {
-      loading = false;
-      notifyListeners();
-    }
+    final completer = Completer<void>();
+    _writes = _writes.then((_) async {
+      try {
+        var merged = await _store.readHistory();
+        // Views that arrive during the initial read are held in memory. Persist
+        // them on top of the loaded data before enabling normal mutations.
+        while (true) {
+          final pending = Map<String, HistoryEntry>.from(_pendingViews);
+          for (final entry in pending.values) {
+            merged = _upsert(merged, entry);
+          }
+          if (pending.isEmpty) break;
+          await _store.saveHistory(merged);
+          for (final entry in pending.entries) {
+            if (identical(_pendingViews[entry.key], entry.value)) {
+              _pendingViews.remove(entry.key);
+            }
+          }
+        }
+        _items = merged;
+        _sort();
+        loaded = true;
+        error = null;
+        completer.complete();
+      } catch (_) {
+        error = 'Viewing history could not be loaded. Try again.';
+        completer.complete();
+      } finally {
+        loading = false;
+        notifyListeners();
+      }
+    });
+    await completer.future;
   }
 
   /// Records a source view. If the same [sourceId] already exists the entry is
   /// updated with a fresh timestamp and moved to the top. Trims to the most
   /// recent [_maxHistorySize] entries.
   Future<void> record(HistoryEntry entry) {
+    final viewed = entry.withViewedAt(DateTime.now().toUtc());
     if (!loaded) {
-      // Silently swallow — do not block source navigation.
+      // Queue in memory while loading so a successful source open never waits
+      // for storage and cannot be lost when the initial read completes.
+      _pendingViews[entry.sourceId] = viewed;
       return Future.value();
     }
     return _mutate(() async {
-      final now = DateTime.now().toUtc();
-      final updated = entry.withViewedAt(now);
-      final next = [..._items];
-      next.removeWhere((e) => e.sourceId == entry.sourceId);
-      next.insert(0, updated);
-      if (next.length > _maxHistorySize) {
-        next.removeRange(_maxHistorySize, next.length);
-      }
+      final next = _upsert(_items, viewed);
       await _store.saveHistory(next);
       _items = next;
     });
@@ -69,15 +89,12 @@ class HistoryLibrary extends ChangeNotifier {
     });
   }
 
-  Future<void> clearAll() {
-    if (!loaded) {
-      return Future.error(StateError('History is still loading.'));
-    }
-    return _mutate(() async {
-      await _store.clearHistory();
-      _items = [];
-    });
-  }
+  Future<void> clearAll() => _mutate(() async {
+    await _store.clearHistory();
+    _pendingViews.clear();
+    _items = [];
+    loaded = true;
+  });
 
   Future<void> _mutate(Future<void> Function() change) {
     final completer = Completer<void>();
@@ -94,6 +111,15 @@ class HistoryLibrary extends ChangeNotifier {
       }
     });
     return completer.future;
+  }
+
+  List<HistoryEntry> _upsert(List<HistoryEntry> items, HistoryEntry entry) {
+    final next = [...items]..removeWhere((e) => e.sourceId == entry.sourceId);
+    next.insert(0, entry);
+    if (next.length > _maxHistorySize) {
+      next.removeRange(_maxHistorySize, next.length);
+    }
+    return next;
   }
 
   void _sort() {
