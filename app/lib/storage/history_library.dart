@@ -67,7 +67,8 @@ class HistoryLibrary extends ChangeNotifier {
     if (!loaded) {
       // Queue in memory while loading so a successful source open never waits
       // for storage and cannot be lost when the initial read completes.
-      // Reinsert reopened sources so pending views stay oldest to newest.
+      // Keep map iteration in last-opened order, including when an existing
+      // pending source is reopened before the initial read completes.
       _pendingViews.remove(entry.sourceId);
       _pendingViews[entry.sourceId] = viewed;
       return Future.value();

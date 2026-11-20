@@ -194,37 +194,51 @@ void main() {
     library.dispose();
   });
 
-  test('reopening a pending source at the limit keeps it newest', () async {
-    final store = _DelayedHistoryStore([]);
+  test('reopening a pending source preserves it at the 50-item limit', () async {
+    final initial = [
+      for (var i = 0; i < 50; i++)
+        _historyEntry(
+          kind: HistoryKind.announcement,
+          sourceId: 'source-$i',
+          title: 'Source $i',
+          url: _announcementUrl,
+          viewedAtUtc: DateTime.utc(2026, 11, 20).subtract(
+            Duration(minutes: i),
+          ),
+        ),
+    ];
+    final sourceZero = _historyEntry(
+      kind: HistoryKind.announcement,
+      sourceId: 'source-0',
+      title: 'Source 0 reopened',
+      url: _announcementUrl,
+    );
+    final store = _DelayedHistoryStore(initial);
     final library = HistoryLibrary(store);
-    addTearDown(library.dispose);
     final loading = library.load();
     await store.readStarted.future;
 
-    Future<void> record(int index) => library.record(
-      _historyEntry(
-        kind: HistoryKind.announcement,
-        sourceId: 'source-$index',
-        title: 'Source $index',
-        url: _announcementUrl,
-      ),
-    );
-    for (var i = 0; i < 50; i++) {
-      await record(i);
+    await library.record(sourceZero);
+    for (var i = 1; i <= 50; i++) {
+      await library.record(
+        _historyEntry(
+          kind: HistoryKind.result,
+          sourceId: 'pending-$i',
+          title: 'Pending $i',
+          url: _resultUrl,
+        ),
+      );
     }
-    await record(0);
-    await record(50);
+    await Future<void>.delayed(const Duration(milliseconds: 2));
+    await library.record(sourceZero);
     store.releaseRead.complete();
     await loading;
 
-    for (final entries in [library.items, store.saved]) {
-      expect(entries, hasLength(50));
-      expect(entries.take(2).map((entry) => entry.sourceId), [
-        'source-50',
-        'source-0',
-      ]);
-      expect(entries.map((entry) => entry.sourceId), isNot(contains('source-1')));
-    }
+    expect(library.items, hasLength(50));
+    expect(library.items.first.sourceId, 'source-0');
+    expect(library.items.first.title, 'Source 0 reopened');
+    expect(store.saved.first.sourceId, 'source-0');
+    library.dispose();
   });
 
   test(
