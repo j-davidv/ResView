@@ -194,6 +194,39 @@ void main() {
     library.dispose();
   });
 
+  test('reopening a pending source at the limit keeps it newest', () async {
+    final store = _DelayedHistoryStore([]);
+    final library = HistoryLibrary(store);
+    addTearDown(library.dispose);
+    final loading = library.load();
+    await store.readStarted.future;
+
+    Future<void> record(int index) => library.record(
+      _historyEntry(
+        kind: HistoryKind.announcement,
+        sourceId: 'source-$index',
+        title: 'Source $index',
+        url: _announcementUrl,
+      ),
+    );
+    for (var i = 0; i < 50; i++) {
+      await record(i);
+    }
+    await record(0);
+    await record(50);
+    store.releaseRead.complete();
+    await loading;
+
+    for (final entries in [library.items, store.saved]) {
+      expect(entries, hasLength(50));
+      expect(entries.take(2).map((entry) => entry.sourceId), [
+        'source-50',
+        'source-0',
+      ]);
+      expect(entries.map((entry) => entry.sourceId), isNot(contains('source-1')));
+    }
+  });
+
   test(
     'malformed history storage remains intact and reports a load error',
     () async {
