@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../domain/bookmark.dart';
+import '../domain/history.dart';
 import '../domain/models.dart';
 
 class PrivateStore {
@@ -59,10 +60,59 @@ class PrivateStore {
     value: jsonEncode(items.map((item) => item.toJson()).toList()),
   );
 
-  Future<void> clearLocalValues() async {
+  Future<List<HistoryEntry>> readHistory() async {
+    final value = await _storage.read(key: 'history');
+    if (value == null) return [];
+
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(value);
+    } catch (_) {
+      throw const FormatException('Stored history is malformed.');
+    }
+    if (decoded is! List) {
+      throw const FormatException('Stored history is malformed.');
+    }
+
+    final items = <HistoryEntry>[];
+    final seen = <String>{};
+    for (final entry in decoded) {
+      if (entry is! Map) continue;
+      try {
+        final item = HistoryEntry.fromJson(Map<String, dynamic>.from(entry));
+        if (seen.add(item.sourceId)) items.add(item);
+      } catch (_) {
+        // Ignore malformed entries while preserving the rest of the list.
+      }
+    }
+    return items;
+  }
+
+  Future<void> saveHistory(List<HistoryEntry> items) => _storage.write(
+    key: 'history',
+    value: jsonEncode(items.map((item) => item.toJson()).toList()),
+  );
+
+  Future<void> clearHistory() => _storage.delete(key: 'history');
+
+  Future<void> clearLocalValues({
+    Future<void> Function()? clearBookmarks,
+    Future<void> Function()? clearHistory,
+  }) async {
     await deleteName();
     await _storage.delete(key: 'selection');
-    await _storage.delete(key: 'bookmarks');
+    // Libraries serialize these deletions with their pending writes and clear
+    // their in-memory lists only after storage has been updated.
+    if (clearBookmarks == null) {
+      await _storage.delete(key: 'bookmarks');
+    } else {
+      await clearBookmarks();
+    }
+    if (clearHistory == null) {
+      await _storage.delete(key: 'history');
+    } else {
+      await clearHistory();
+    }
   }
 
   // Preserve the deletion intent and Firebase identity until server acknowledgement.

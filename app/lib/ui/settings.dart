@@ -7,6 +7,8 @@ import '../alerts/push_preferences.dart';
 import '../domain/models.dart';
 import '../storage/private_store.dart';
 import '../storage/list_store.dart';
+import '../storage/bookmark_library.dart';
+import '../storage/history_library.dart';
 import 'design.dart';
 import 'shared.dart';
 import 'shell.dart';
@@ -15,6 +17,8 @@ class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     required this.store,
     required this.lists,
+    this.bookmarks,
+    this.history,
     required this.push,
     required this.selection,
     required this.onChange,
@@ -26,6 +30,8 @@ class SettingsScreen extends StatefulWidget {
   });
   final PrivateStore store;
   final ListStore lists;
+  final BookmarkLibrary? bookmarks;
+  final HistoryLibrary? history;
   final PushPreferences push;
   final ExamSelection? selection;
   final String? examTitle, examDetails;
@@ -235,7 +241,7 @@ class _SettingsState extends State<SettingsScreen> {
     ),
     const SizedBox(height: 24),
     Text(
-      'ResView saves your exam choice and bookmarks on this device, Google handles document searches, and optional alerts use the subscription details you agree to share.',
+      'ResView saves your exam choice, bookmarks, and viewing history on this device. Google handles document searches, and optional alerts use the subscription details you agree to share.',
       style: Theme.of(context).textTheme.bodySmall,
     ),
   ];
@@ -244,11 +250,14 @@ class _SettingsState extends State<SettingsScreen> {
     if (await confirmDelete(
       context,
       'Delete local data?',
-      'Delete your saved exam selection, bookmarks, and any files from earlier app versions. Email subscriptions and server push preferences are managed separately.',
+      'Delete your saved exam selection, bookmarks, viewing history, and any files from earlier app versions. Email subscriptions and server push preferences are managed separately.',
     )) {
       await _operation(() async {
         await widget.lists.clearAll();
-        await widget.store.clearLocalValues();
+        await widget.store.clearLocalValues(
+          clearBookmarks: widget.bookmarks?.clearAll,
+          clearHistory: widget.history?.clearAll,
+        );
         widget.onLocalDeleted();
       }, 'Local data deleted.');
     }

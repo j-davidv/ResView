@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../domain/models.dart';
 import '../storage/bookmark_library.dart';
+import '../storage/history_library.dart';
 import 'design.dart';
 import 'shared.dart';
 
@@ -10,6 +11,7 @@ class ResultsScreen extends StatelessWidget {
     required this.version,
     this.publications = const [],
     this.bookmarks,
+    this.historyLibrary,
     this.examId,
     this.examName,
     this.sittingLabel,
@@ -22,6 +24,7 @@ class ResultsScreen extends StatelessWidget {
   final bool loading;
   final List<Publication> publications;
   final BookmarkLibrary? bookmarks;
+  final HistoryLibrary? historyLibrary;
   final String? examId, examName, sittingLabel;
 
   @override
@@ -66,6 +69,7 @@ class ResultsScreen extends StatelessWidget {
           current,
           publications: publications,
           bookmarks: bookmarks,
+          historyLibrary: historyLibrary,
           examId: examId,
           examName: examName,
           sittingLabel: sittingLabel,

@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../data/exam_repository.dart';
 import '../domain/bookmark.dart';
+import '../domain/history.dart';
 import '../domain/models.dart';
 import '../storage/bookmark_library.dart';
+import '../storage/history_library.dart';
 import 'design.dart';
 import 'shared.dart';
 
@@ -15,6 +17,7 @@ class UpdatesScreen extends StatefulWidget {
     required this.selection,
     this.examId,
     this.bookmarks,
+    this.historyLibrary,
     this.examTitle,
     required this.revision,
     super.key,
@@ -23,6 +26,7 @@ class UpdatesScreen extends StatefulWidget {
   final ExamSelection selection;
   final String? examId;
   final BookmarkLibrary? bookmarks;
+  final HistoryLibrary? historyLibrary;
   final String? examTitle;
   final int revision;
 
@@ -158,6 +162,7 @@ class _UpdatesState extends State<UpdatesScreen> {
             examId: widget.examId,
             examName: widget.examTitle ?? widget.examId,
             bookmarks: widget.bookmarks,
+            historyLibrary: widget.historyLibrary,
           ),
           const SizedBox(height: 12),
           OutlinedButton(
@@ -195,6 +200,7 @@ class _UpdatesState extends State<UpdatesScreen> {
                                   examId: widget.examId,
                                   examName: widget.examTitle ?? widget.examId,
                                   bookmarks: widget.bookmarks,
+                                  historyLibrary: widget.historyLibrary,
                                 ),
                         ),
                       ),
@@ -217,19 +223,24 @@ class _UpdateCard extends StatelessWidget {
     this.examId,
     this.examName,
     this.bookmarks,
+    this.historyLibrary,
   });
 
   final ExamUpdate item;
   final String? examId, examName;
   final BookmarkLibrary? bookmarks;
+  final HistoryLibrary? historyLibrary;
 
   @override
   Widget build(BuildContext context) {
-    final canonicalUrl = item.url.replace(
-      host: item.url.host == 'prc.gov.ph' || item.url.host == 'www.prc.gov.ph'
-          ? 'www.prc.gov.ph'
-          : item.url.host.toLowerCase(),
-    );
+    final canonicalUrl = item.url.host == 'prc.gov.ph' || item.url.host == 'www.prc.gov.ph'
+        ? item.url.replace(
+            host: 'www.prc.gov.ph',
+            path: item.url.path.startsWith('/index.php/article/')
+                ? item.url.path.replaceFirst('/index.php', '')
+                : item.url.path,
+          )
+        : item.url.replace(host: item.url.host.toLowerCase());
     final bookmark = examId == null || examName == null
         ? null
         : BookmarkItem(
@@ -241,6 +252,18 @@ class _UpdateCard extends StatelessWidget {
             url: item.url,
             publishedAtUtc: item.posted,
             savedAtUtc: DateTime.now().toUtc(),
+          );
+    final historyEntry = examId == null || examName == null
+        ? null
+        : HistoryEntry(
+            sourceId: canonicalUrl.toString(),
+            kind: HistoryKind.announcement,
+            examId: examId!,
+            examName: examName!,
+            title: item.title,
+            url: item.url,
+            publishedAtUtc: item.posted,
+            viewedAtUtc: DateTime.now().toUtc(),
           );
 
     return Padding(
@@ -267,7 +290,12 @@ class _UpdateCard extends StatelessWidget {
             ),
             if (item.audience.isNotEmpty) Metadata(item.audience),
             const SizedBox(height: 8),
-            SourceButton('Open PRC notice', item.url),
+            SourceButton(
+              'Open PRC notice',
+              item.url,
+              historyLibrary: historyLibrary,
+              historyEntry: historyEntry,
+            ),
           ],
         ),
       ),

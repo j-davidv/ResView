@@ -31,10 +31,12 @@ class SourceViewer extends StatefulWidget {
   const SourceViewer({
     required this.uri,
     required this.openExternal,
+    this.onSourceLoaded,
     super.key,
   });
   final Uri uri;
   final Future<void> Function(Uri) openExternal;
+  final VoidCallback? onSourceLoaded;
   @override
   State<SourceViewer> createState() => _SourceViewerState();
 }
@@ -48,6 +50,7 @@ class _SourceViewerState extends State<SourceViewer> {
   Uri? _blocked;
   String? _error, _searchStatus;
   bool _loading = true, _finding = false, _hasMatches = false;
+  bool _sourceRecorded = false;
   int _generation = 0;
   bool get _drive => _uri.host == 'drive.google.com';
 
@@ -65,6 +68,7 @@ class _SourceViewerState extends State<SourceViewer> {
   Future<void> _event(MethodCall call) async {
     if (!mounted) return;
     final data = Map<String, dynamic>.from(call.arguments as Map);
+    var recordSource = false;
     setState(() {
       switch (call.method) {
         case 'loading':
@@ -76,6 +80,10 @@ class _SourceViewerState extends State<SourceViewer> {
           _query.clear();
         case 'loaded':
           _loading = false;
+          if (!_sourceRecorded) {
+            _sourceRecorded = true;
+            recordSource = true;
+          }
         case 'failed':
           _loading = false;
           _error = 'The official source could not be loaded. Check your connection and retry, or open it in your browser.';
@@ -83,6 +91,7 @@ class _SourceViewerState extends State<SourceViewer> {
           _blocked = Uri.tryParse(data['url'] as String);
       }
     });
+    if (recordSource) widget.onSourceLoaded?.call();
   }
 
   void _created(int id) {
