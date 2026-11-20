@@ -251,9 +251,10 @@ class SourceLinks extends StatelessWidget {
     ResultVersion? version,
     String? fallbackTitle,
   }) {
-    final id = article == null && version != null
-        ? '${version.selection.examId}:${version.selection.sittingId}:${version.selection.categoryId}:${version.documentVersion}'
-        : _articleIdentity(uri).toString();
+    final id = article?.id ??
+        (version == null
+            ? uri.toString()
+            : '${version.selection.examId}:${version.selection.sittingId}:${version.selection.categoryId}:${version.documentVersion}');
     if (bookmarks == null || examId == null || examName == null) return null;
     return BookmarkItem(
       id: id,

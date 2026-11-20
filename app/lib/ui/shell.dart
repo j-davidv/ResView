@@ -284,8 +284,10 @@ class ExamShell extends StatelessWidget {
       color: colors.surface,
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * 0.32,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.32,
+          ),
           child: SingleChildScrollView(
             child: Wrap(
               children: [
