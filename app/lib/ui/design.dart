@@ -191,11 +191,15 @@ ThemeData appTheme(Brightness brightness) {
         foregroundColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.disabled) ? secondary : text,
         ),
-        side: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.focused)
-              ? BorderSide(color: text, width: 2)
-              : BorderSide(color: outline),
-        ),
+        side: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.focused)) {
+            return BorderSide(color: text, width: 2);
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return BorderSide(color: divider);
+          }
+          return BorderSide(color: outline);
+        }),
       ),
     ),
     textButtonTheme: TextButtonThemeData(style: controlStyle),
@@ -245,6 +249,8 @@ enum DesignGlyph {
   listChecks('list-checks'),
   copyLink('content-copy'),
   saveName('save-outline'),
+  bookmark('bookmark-outline'),
+  bookmarked('bookmark-filled'),
   close('close'),
   sitting('calendar-month-outline');
 

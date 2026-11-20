@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../domain/bookmark.dart';
 import '../domain/models.dart';
 
 class PrivateStore {
@@ -24,9 +25,44 @@ class PrivateStore {
 
   Future<void> saveSelection(ExamSelection selection) =>
       _storage.write(key: 'selection', value: jsonEncode(selection.toJson()));
+
+  Future<List<BookmarkItem>> readBookmarks() async {
+    final value = await _storage.read(key: 'bookmarks');
+    if (value == null) return [];
+
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(value);
+    } catch (_) {
+      throw const FormatException('Stored bookmarks are malformed.');
+    }
+    if (decoded is! List) {
+      throw const FormatException('Stored bookmarks are malformed.');
+    }
+
+    final items = <BookmarkItem>[];
+    final seen = <String>{};
+    for (final entry in decoded) {
+      if (entry is! Map) continue;
+      try {
+        final item = BookmarkItem.fromJson(Map<String, dynamic>.from(entry));
+        if (seen.add(item.key)) items.add(item);
+      } catch (_) {
+        // Ignore malformed entries while preserving the rest of the list.
+      }
+    }
+    return items;
+  }
+
+  Future<void> saveBookmarks(List<BookmarkItem> items) => _storage.write(
+    key: 'bookmarks',
+    value: jsonEncode(items.map((item) => item.toJson()).toList()),
+  );
+
   Future<void> clearLocalValues() async {
     await deleteName();
     await _storage.delete(key: 'selection');
+    await _storage.delete(key: 'bookmarks');
   }
 
   // Preserve the deletion intent and Firebase identity until server acknowledgement.

@@ -235,7 +235,7 @@ class _SettingsState extends State<SettingsScreen> {
     ),
     const SizedBox(height: 24),
     Text(
-      'ResView saves your exam choice on this device, Google handles document searches, and optional alerts use the subscription details you agree to share.',
+      'ResView saves your exam choice and bookmarks on this device, Google handles document searches, and optional alerts use the subscription details you agree to share.',
       style: Theme.of(context).textTheme.bodySmall,
     ),
   ];
@@ -244,7 +244,7 @@ class _SettingsState extends State<SettingsScreen> {
     if (await confirmDelete(
       context,
       'Delete local data?',
-      'Delete your saved exam selection and any files from earlier app versions. Email subscriptions and server push preferences are managed separately.',
+      'Delete your saved exam selection, bookmarks, and any files from earlier app versions. Email subscriptions and server push preferences are managed separately.',
     )) {
       await _operation(() async {
         await widget.lists.clearAll();
