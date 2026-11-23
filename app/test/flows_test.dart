@@ -24,6 +24,7 @@ class TestRepository implements ExamRepository {
   final PublicationState state;
   final SourceFreshness freshness;
   bool metadataUnavailable = false;
+  DateTime? sittingStart;
   bool catalogUnavailable = false, emptyHistory = false;
   final resultReads = <ExamSelection>[];
   final versionReads = <ExamSelection>[];
@@ -44,8 +45,10 @@ class TestRepository implements ExamRepository {
     Sitting(
       id: 'test-sitting',
       examId: id,
-      start: DateTime.utc(2026, 10, 14),
-      end: DateTime.utc(2026, 10, 15),
+      start: sittingStart ?? DateTime.utc(2026, 10, 14),
+      end:
+          sittingStart?.add(const Duration(days: 1)) ??
+          DateTime.utc(2026, 10, 15),
       type: 'overseas',
       location: 'TEST ONLY location',
       categories: {'general': 'General'},
@@ -90,6 +93,68 @@ class TestRepository implements ExamRepository {
 void main() {
   setUp(() => FlutterSecureStorage.setMockInitialValues({'introSeen': 'true'}));
   const selection = ExamSelection('test-only', 'test-sitting', 'general');
+
+  for (final daysAhead in [1, 0, -1]) {
+    testWidgets('empty results use the Philippine sitting day ($daysAhead)', (
+      tester,
+    ) async {
+      await PrivateStore().saveSelection(selection);
+      final now = DateTime.now().toUtc().add(const Duration(hours: 8));
+      final start = DateTime.utc(now.year, now.month, now.day + daysAhead);
+      final repository = TestRepository(PublicationState.notReleased)
+        ..sittingStart = start
+        ..emptyHistory = true
+        ..pendingVersion = (Completer<ResultVersion?>()..complete(null));
+      await tester.pumpWidget(
+        ExamApp(repository: repository, listStore: TestListStore()),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          daysAhead > 0 ? 'Upcoming exam' : 'Publication status unavailable',
+        ),
+        findsOneWidget,
+      );
+      if (daysAhead > 0) {
+        expect(
+          find.textContaining('scheduled to start on ${dateLabel(start)}'),
+          findsOneWidget,
+        );
+        expect(find.text('Retry'), findsNothing);
+      }
+    });
+  }
+
+  testWidgets('a failed result check stays unavailable for a future sitting', (
+    tester,
+  ) async {
+    await PrivateStore().saveSelection(selection);
+    final repository = TestRepository(PublicationState.notReleased)
+      ..sittingStart = DateTime.utc(2099)
+      ..emptyHistory = true
+      ..metadataUnavailable = true;
+    await tester.pumpWidget(
+      ExamApp(repository: repository, listStore: TestListStore()),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Publication status unavailable'), findsOneWidget);
+    expect(find.text('Upcoming exam'), findsNothing);
+    expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('official publications take priority over a future schedule', (
+    tester,
+  ) async {
+    await PrivateStore().saveSelection(selection);
+    final repository = TestRepository(PublicationState.checkingUnavailable)
+      ..sittingStart = DateTime.utc(2099);
+    await tester.pumpWidget(
+      ExamApp(repository: repository, listStore: TestListStore()),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Results released'), findsOneWidget);
+    expect(find.text('Upcoming exam'), findsNothing);
+  });
 
   for (final state in PublicationState.values) {
     testWidgets(

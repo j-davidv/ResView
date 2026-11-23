@@ -423,7 +423,9 @@ class _ExamHomeState extends State<_ExamHome> {
       examId: _selected!.exam.id,
       examName: _selected!.exam.title,
       sittingLabel: _selected!.details,
+      sittingStart: _selected!.sitting.start,
       loading: _loading && !hasPrevious,
+      failed: _failed,
       onRetry: _failed && !hasPrevious ? _refresh : null,
     );
   }
