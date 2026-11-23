@@ -1,12 +1,22 @@
 # All-exam PRC coverage audit
 
-Source snapshot: November 23, 2026; verification completed November 24 (Asia/Taipei). This audit compares anonymous production reads with the official 2026 PRC schedule and every counted monthly archive from January through November. Production was read only; the fixes below are local and require deployment and a successful refresh before the phone receives them. Future/in-progress labels below use the November 23 snapshot date.
+Source snapshot: November 23, 2026; verification completed November 24 (Asia/Taipei). This audit compares anonymous production reads with the official 2026 PRC schedule and every counted monthly archive from January through November. The initial audit read production without changing it. The fixes were subsequently deployed as recorded below. Counts and future/in-progress labels in the original audit use its November 23 snapshot.
+
+## Deployment verified November 24, 2026
+
+The code is published in [commit 18d7867](https://github.com/j-davidv/ResView/commit/18d7867040e2a9bb0e6f1523cbf4f18026176dfa). Supabase `prc-archive` version 2 is active with its existing authentication settings. [Production run 45217741768](https://github.com/j-davidv/ResView/actions/runs/45217741768) passed worker tests, the results monitor, and the exam-history refresh on that revision. The existing hourly result monitor and daily history refresh remain enabled.
+
+Independent anonymous reads verified the Nutritionist-Dietitians publication for the November 12 sitting, the CPA SPLE notice in its own feed and absent from domestic CPAs, and all 15 Criminologists notices including the official `/index.php/` resolution. All 99 update feeds have the new successful-check timestamp, `2026-11-23T16:33:23.528231+00:00` (November 24 at 00:33:23 Taipei): 92 contain notices and seven are checked empty. The results monitor reports a fresh successful check at `2026-11-23T16:33:22.501737+00:00`.
+
+[ResView 1.0.1](https://github.com/j-davidv/ResView/releases/tag/v1.0.1), Android build 3, contains the app-side source URL fix. Its 57,514,581-byte APK was signed with the existing release certificate and verified as `org.resview.app`, version `1.0.1`, code `3`, without the debuggable flag. APK SHA-256: `085700a9661feb05094b0e649a4480c58f24635e5082feab61f4d2b245d1d2aa`. An independent unauthenticated download matched that exact byte count and digest. Existing users receive shared data changes on refresh and need to install the APK for the app-side fix.
+
+## Original audit
 
 The database contains 99 exam labels (including SPLE and exam phases), 159 active sittings, and 126 publication associations. The archives contain 867 entries; 723 eligible news/issuance pages were fetched and checked for posting date and archive month. There are 93 distinct result announcements. The local corrected scan matches updates to 92 exam labels.
 
 Production results last checked: `2026-11-23T15:38:51.128673+00:00`. Production updates last checked: `2026-11-23T10:47:22.968069+00:00`. Source replay began: `2026-11-23T15:59:12.489207+00:00`. These are separate checks; one does not renew the other.
 
-## Confirmed bugs fixed locally
+## Confirmed bugs
 
 - Nutritionist-Dietitians: the schedule uses the singular first word, while the November result title uses **Nutritionists-Dietitians**. The results matcher now accepts that published form. The corrected association targets the November 12 sitting. The announcement was already present in Updates.
 - CPA SPLE: the May release says **Special Prof. Licensure Exam.** The update matcher previously filed it under domestic CPAs. It now belongs only to CPA SPLE. The Results association was already correct.
@@ -198,7 +208,7 @@ An exam can have results for one sitting and none for another. These rows use th
 
 ## Limits and remaining work
 
-- Deploy the worker, hosted reader, and Android source-validation changes, then refresh both importers to correct production. This audit did not publish database changes or modify deployment settings.
+- Service deployment and the initial production refresh are complete. Existing Android users need version 1.0.1 for the app-side source URL fix.
 - Seven exam labels remain without a verified update match after the CPA SPLE correction: Aeronautical Engineers SPLE, Environmental Planners SPLE, Geologists, Physical Therapists SPLE, Psychologists SPLE, Sanitary Engineer SPLE, and X-Ray Technologists SPLE.
 - Four previously documented regional oral/technical evaluation releases retain unresolved sitting evidence; confirmed associations remain imported. See [mapping review](prc-mapping-review.md).
 - Standalone PDFs, regional social posts, and sources outside the counted archives are not evidence of archive completeness. The six old SPLE gaps require additional official evidence before being described as cancelled or having no examinees.
