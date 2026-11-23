@@ -9,6 +9,34 @@ from worker.source import SourceError
 
 
 class ExamHistoryTests(unittest.TestCase):
+    def test_index_php_issuances_are_fetched_and_matched_by_description(self):
+        now = datetime(2026, 7, 14, tzinfo=timezone.utc)
+        catalog = {'exams': [{'id': 'criminologists'}], 'sittings': [], 'review': []}
+        for kind in ('resolution', 'memorandum-circular'):
+            url = f'https://www.prc.gov.ph/index.php/prc-{kind}-no-1-s-2026'
+            title = 'PRC Resolution No. 1' if kind == 'resolution' else 'PRC Memorandum No. 1'
+            body = (f'<article><h1>{title}</h1>Posted on 3 July, 2026'
+                    '<p>Description Adding a testing center for Criminologists Attachment PDF</p></article>').encode()
+            config = {'sourcePolicy': {'accessAuthorization': 'test',
+                      'routes': {'www.prc.gov.ph': ['/robots.txt']},
+                      'exactRoutes': {'www.prc.gov.ph': []}}, 'scheduleOverrides': [],
+                      'advisoryPilot': {'articles': {}}}
+            fetcher = Mock(side_effect=lambda target, *_, **kwargs: body if target == url else b'User-agent: *\nAllow: /')
+            with self.subTest(kind=kind), TemporaryDirectory() as folder, patch('worker.exam_history.parse_catalog', return_value=catalog):
+                feeds, _ = build_history(config, now, Path(folder),
+                                         inventory=lambda *_: {url: (title, url, '202607')}, fetcher=fetcher)
+                self.assertEqual([item['publicationUrl'] for item in feeds['criminologists']], [url])
+
+    def test_abbreviated_special_profession_title_stays_in_sple_history(self):
+        patterns = audience_patterns([{'id': key} for key in
+                                     ('certified-public-accountants', 'certified-public-accountants-sple')])
+        for special in ('Special Prof.', 'Special Professional', 'SPLE'):
+            with self.subTest(special=special):
+                self.assertEqual(match_exams(f'May 2026 Certified Public Accountants {special} Licensure Exam. Results Released', patterns),
+                                 ['certified-public-accountants-sple'])
+        self.assertEqual(match_exams('May 2026 Certified Public Accountants Licensure Examination Results Released', patterns),
+                         ['certified-public-accountants'])
+
     def test_hosted_transport_preserves_source_retry_and_region(self):
         response = Mock(status=200, headers={'X-PRC-Status': '429', 'X-PRC-retry-after': '5'})
         response.read.return_value = b''

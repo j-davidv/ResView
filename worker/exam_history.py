@@ -17,7 +17,7 @@ from worker.source import Page, SourceError, SourcePolicy, fetch, parse_catalog
 PH = timezone(timedelta(hours=8))
 START = datetime(2026, 1, 1, tzinfo=PH)
 ROOT = 'https://www.prc.gov.ph'
-ISSUANCE = r'/prc-(?:resolution|memorandum-circular)-no-[0-9]+[a-z]?-s-20[0-9]{2}(?:-[0-9]+)?'
+ISSUANCE = r'/(?:index\.php/)?prc-(?:resolution|memorandum-circular)-no-[0-9]+[a-z]?-s-20[0-9]{2}(?:-[0-9]+)?'
 
 
 
@@ -110,7 +110,7 @@ def match_exams(title, patterns):
     for short, full in [('radiologic and x ray technologists', 'radiologic technologists and x ray technologists'),
                         ('real estate appraisers and consultants', 'real estate appraisers and real estate consultants')]:
         text = text.replace(short, full)
-    special = bool(re.search(r'\bspecial professional licensure|\bsple\b', text))
+    special = bool(re.search(r'\bspecial prof(?:essional)? licensure\b|\bsple\b', text))
     hits = [(key, m.start(), m.end()) for key, pattern in patterns for m in pattern.finditer(text)
             if key.endswith('-sple') == special]
     return sorted({key for key, a, b in hits

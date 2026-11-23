@@ -15,6 +15,16 @@ def table(rows):
 
 
 class MappingTests(unittest.TestCase):
+    def test_nutritionists_dietitians_result_matches_singular_schedule_label(self):
+        catalog = parse_catalog(table([
+            ['1', 'Nutritionist-Dietitians', 'November 12 and 13, 2026', '', 'NCR'],
+        ]), ROOT + '/2026-schedule-examination', NOW)
+        for profession in ('Nutritionists-Dietitians', 'Nutritionist-Dietitians'):
+            with self.subTest(profession=profession):
+                self.assertEqual(associations({'title': f'November 2026 {profession} Computer-Based Licensure Examination Results Released'}, catalog), [
+                    {'examId': 'nutritionist-dietitians', 'sittingId': 'nutritionist-dietitians-2026-11-12', 'categoryId': 'all'},
+                ])
+
     def test_same_day_correction_uses_newest_official_index_entry(self):
         config = {'sourcePolicy': {'accessAuthorization': 'test', 'routes': {
             'www.prc.gov.ph': ['/article/', '/articles/', '/2026-schedule-examination']}},

@@ -279,6 +279,7 @@ def parse_catalog(body, url, now, overrides=()):
 
 def associations(publication, catalog):
     title = _exam_title(publication['title']).lower()
+    title = re.sub(r'\bnutritionists-dietitians\b', 'nutritionist-dietitians', title)
     month = re.match(r'([a-z]+) (20\d{2})\b', title)
     if not month:
         return []

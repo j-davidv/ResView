@@ -220,7 +220,7 @@ class AdvisoryFeed {
       if (!{'www.prc.gov.ph', 'prc.gov.ph'}.contains(url.host) ||
           url.port != 443 ||
           !RegExp(
-            r'^/(?:(?:index\.php/)?article/[^/]+|prc-(?:resolution|memorandum-circular)-no-[0-9]+[a-z]?-s-20[0-9]{2}(?:-[0-9]+)?)$',
+            r'^/(?:index\.php/)?(?:article/[^/]+|prc-(?:resolution|memorandum-circular)-no-[0-9]+[a-z]?-s-20[0-9]{2}(?:-[0-9]+)?)$',
           ).hasMatch(url.path) ||
           url.hasQuery ||
           url.hasFragment ||

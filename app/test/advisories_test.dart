@@ -50,6 +50,18 @@ class AdvisoryRepository extends TestRepository {
 }
 
 void main() {
+  test('official issuances accept direct and index.php routes', () {
+    for (final prefix in ['', 'index.php/']) {
+      for (final kind in ['resolution', 'memorandum-circular']) {
+        final data = snapshot();
+        final notice = (data['notices'] as List).single as Map;
+        final url = 'https://www.prc.gov.ph/${prefix}prc-$kind-no-1-s-2026';
+        notice['publicationUrl'] = url;
+        expect(AdvisoryFeed.fromJson(data).notices.single.url.toString(), url);
+      }
+    }
+  });
+
   testWidgets('notice-only sitting has separate Updates and Results reads', (
     tester,
   ) async {

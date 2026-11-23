@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 
-const allowed = /^\/(?:robots\.txt|archives\/20\d{2}(?:\/20\d{2}(?:0[1-9]|1[0-2]))?|20\d{2}-schedule-examination|(?:index\.php\/)?article\/[a-z0-9-]+|prc-(?:resolution|memorandum-circular)-no-\d+[a-z]?-s-20\d{2}(?:-\d+)?)$/;
+const allowed = /^\/(?:robots\.txt|archives\/20\d{2}(?:\/20\d{2}(?:0[1-9]|1[0-2]))?|20\d{2}-schedule-examination|(?:index\.php\/)?(?:article\/[a-z0-9-]+|prc-(?:resolution|memorandum-circular)-no-\d+[a-z]?-s-20\d{2}(?:-\d+)?))$/;
 const maxBytes = 2 * 1024 * 1024;
 const encoder = new TextEncoder();
 
