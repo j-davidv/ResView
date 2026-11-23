@@ -114,7 +114,7 @@ void main() {
           expect(find.textContaining('Document version'), findsNothing);
           expect(find.text('View list of passers'), findsOneWidget);
           expect(find.text('PRC announcement'), findsOneWidget);
-          await tester.tap(find.text('Settings').last);
+          await tester.tap(find.byTooltip('Settings'));
           await tester.pumpAndSettle();
           expect(find.text('Saved name'), findsNothing);
           expect(find.text('Offline lists'), findsNothing);

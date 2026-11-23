@@ -58,7 +58,7 @@ void main() {
       );
       await waitFor(find.text('Publication status unavailable'));
       expect(find.text('Results released'), findsNothing);
-      expect(find.text('Settings'), findsWidgets);
+      expect(find.byTooltip('Settings'), findsWidgets);
       await tester.tap(find.text('Updates').last);
       await waitFor(find.text(expected));
     }

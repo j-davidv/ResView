@@ -9,6 +9,39 @@ import 'flows_test.dart' show TestListStore;
 void main() {
   setUp(() => FlutterSecureStorage.setMockInitialValues({'introSeen': 'true'}));
 
+  testWidgets('Settings opens from the header and Back restores the tab', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(ExamApp(listStore: TestListStore()));
+    await tester.pumpAndSettle();
+    expect(
+      find.widgetWithText(NavigationDestination, 'Settings'),
+      findsNothing,
+    );
+    final settings = find.byTooltip('Settings');
+    expect(settings, findsOneWidget);
+    expect(tester.getCenter(settings).dx, greaterThan(300));
+    expect(tester.getCenter(settings).dy, lessThan(160));
+    await tester.tap(find.text('Bookmarks').last);
+    await tester.pumpAndSettle();
+    await tester.tap(settings);
+    await tester.pumpAndSettle();
+    expect(find.text('About us'), findsOneWidget);
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nothing saved yet'), findsOneWidget);
+    await tester.tap(settings);
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Nothing saved yet'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('first-use actions save completion and choose opens the picker', (
     tester,
   ) async {
@@ -76,7 +109,7 @@ void main() {
       await tester.tap(find.text('Bookmarks').last);
       await tester.pumpAndSettle();
       expect(find.text('Nothing saved yet'), findsOneWidget);
-      await tester.tap(find.text('Settings').last);
+      await tester.tap(find.byTooltip('Settings'));
       await tester.pumpAndSettle();
       expect(find.text('About us'), findsOneWidget);
     },
@@ -92,12 +125,7 @@ void main() {
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await tester.pumpWidget(ExamApp(listStore: TestListStore()));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Settings').last,
-        100,
-        scrollable: find.byType(Scrollable).last,
-      );
-      await tester.tap(find.text('Settings').last);
+      await tester.tap(find.byTooltip('Settings'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       await tester.scrollUntilVisible(
@@ -125,11 +153,17 @@ void main() {
     await tester.pumpWidget(ExamApp(listStore: TestListStore()));
     await tester.pumpAndSettle();
     for (final title in ['Updates', 'Bookmarks', 'Settings', 'Results']) {
-      final tab = find.text(title).last;
+      final tab = title == 'Settings'
+          ? find.byTooltip('Settings')
+          : find.text(title).last;
       await tester.ensureVisible(tab);
       await tester.tap(tab);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+      if (title == 'Settings') {
+        await tester.tap(find.byTooltip('Back'));
+        await tester.pumpAndSettle();
+      }
     }
     expect(find.text('Updates'), findsOneWidget);
     expect(find.text('Choose exam'), findsOneWidget);

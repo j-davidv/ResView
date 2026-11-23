@@ -7,7 +7,7 @@ Visual design follows the team's green ResView handoff. The current app browses 
 - Native Material 3 with the handoff's light and dark colors, botanical green header, and off-white or dark canvas. Use the bundled Inter font and Material Symbols assets.
 - Honor the system TextScaler without clamping. Content determines height; long exam names and navigation labels wrap.
 - Show the supplied RV mark during launch, first-use welcome, and in the Android launcher. The phone app name is ResView.
-- Three labeled destinations: Results, Updates and Settings, with Results selected on launch. Use a NavigationBar on compact widths and a labeled NavigationRail on expanded widths.
+- Results, Updates, Bookmarks and History are the labeled navigation destinations, with Results selected on launch. Use a NavigationBar on compact widths and a labeled NavigationRail on expanded widths. Settings opens from the top-right header gear; its Back action returns to the previous destination.
 - Exam context shows the exam, sitting dates, Domestic/Special/Overseas type, location, applicable category, and Change action.
 - Results shows publication status and official links. A failed refresh identifies previously retrieved information. Legacy validation states never prevent opening an available official list. Do not display validation reasons or document-version hashes.
 - Source timestamps include Philippine time UTC+08:00. Refresh retrieves metadata and never fabricates a newer PRC source-check timestamp.
@@ -20,7 +20,7 @@ Selection uses searchable official exam choices, concrete sittings, and applicab
 
 Settings retains exam selection, optional alerts, independent email signup/unsubscribe instructions, privacy, local-data deletion, and retry of pending server deletion. No saved-name or offline checker-list controls remain. On upgrade, remove legacy saved names and checker files while preserving the exam preference and pending push-deletion intent.
 
-In Release 2, Updates sits between Results and Settings. Show one latest exam update with its posting date, official title, known audience and source action. View all updates opens a scrollable history using the same cards and showing the exam title and coverage window. Both screens support large text and both themes.
+In Release 2, Updates follows Results. Show one latest exam update with its posting date, official title, known audience and source action. View all updates opens a scrollable history using the same cards and showing the exam title and coverage window. Both screens support large text and both themes.
 
 ## Verification mapping
 

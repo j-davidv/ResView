@@ -15,8 +15,15 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _selection = ExamSelection('exam-test', 'sitting-test', 'general');
-final _announcementUrl = Uri.parse('https://www.prc.gov.ph/article/notice-test');
+final _announcementUrl = Uri.parse(
+  'https://www.prc.gov.ph/article/notice-test',
+);
 final _resultUrl = Uri.parse('https://www.prc.gov.ph/article/result-test');
+
+Finder _filterOption(String label) => find.ancestor(
+  of: find.text(label),
+  matching: find.byWidgetPredicate((widget) => widget is CheckedPopupMenuItem),
+);
 
 BookmarkItem _item({
   required BookmarkKind kind,
@@ -74,53 +81,59 @@ void main() {
 
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
-  test('bookmarks persist, deduplicate on read, and tolerate malformed entries', () async {
-    final announcement = _item(
-      kind: BookmarkKind.announcement,
-      id: _announcementUrl.toString(),
-      title: 'TEST ONLY announcement',
-      url: _announcementUrl,
-    );
-    final encoded = jsonEncode([
-      announcement.toJson(),
-      {'kind': 'invalid'},
-      announcement.toJson(),
-    ]);
-    FlutterSecureStorage.setMockInitialValues({'bookmarks': encoded});
+  test(
+    'bookmarks persist, deduplicate on read, and tolerate malformed entries',
+    () async {
+      final announcement = _item(
+        kind: BookmarkKind.announcement,
+        id: _announcementUrl.toString(),
+        title: 'TEST ONLY announcement',
+        url: _announcementUrl,
+      );
+      final encoded = jsonEncode([
+        announcement.toJson(),
+        {'kind': 'invalid'},
+        announcement.toJson(),
+      ]);
+      FlutterSecureStorage.setMockInitialValues({'bookmarks': encoded});
 
-    final storage = PrivateStore();
-    final firstRead = await storage.readBookmarks();
-    expect(firstRead, hasLength(1));
+      final storage = PrivateStore();
+      final firstRead = await storage.readBookmarks();
+      expect(firstRead, hasLength(1));
 
-    final result = _item(
-      kind: BookmarkKind.result,
-      id: 'publication-id',
-      title: 'TEST ONLY result publication',
-      url: _resultUrl,
-    );
-    await storage.saveBookmarks([...firstRead, result, result]);
-    final reopened = PrivateStore();
-    final persisted = await reopened.readBookmarks();
+      final result = _item(
+        kind: BookmarkKind.result,
+        id: 'publication-id',
+        title: 'TEST ONLY result publication',
+        url: _resultUrl,
+      );
+      await storage.saveBookmarks([...firstRead, result, result]);
+      final reopened = PrivateStore();
+      final persisted = await reopened.readBookmarks();
 
-    expect(persisted.map((item) => item.key).toSet(), {
-      announcement.key,
-      result.key,
-    });
-    await reopened.clearLocalValues();
-    expect(await reopened.readBookmarks(), isEmpty);
-  });
+      expect(persisted.map((item) => item.key).toSet(), {
+        announcement.key,
+        result.key,
+      });
+      await reopened.clearLocalValues();
+      expect(await reopened.readBookmarks(), isEmpty);
+    },
+  );
 
-  test('malformed bookmark storage remains intact and reports a load error', () async {
-    FlutterSecureStorage.setMockInitialValues({'bookmarks': '[broken'});
-    final storage = const FlutterSecureStorage();
-    final library = BookmarkLibrary(PrivateStore());
+  test(
+    'malformed bookmark storage remains intact and reports a load error',
+    () async {
+      FlutterSecureStorage.setMockInitialValues({'bookmarks': '[broken'});
+      final storage = const FlutterSecureStorage();
+      final library = BookmarkLibrary(PrivateStore());
 
-    await library.load();
+      await library.load();
 
-    expect(library.error, contains('could not be loaded'));
-    expect(await storage.read(key: 'bookmarks'), '[broken');
-    library.dispose();
-  });
+      expect(library.error, contains('could not be loaded'));
+      expect(await storage.read(key: 'bookmarks'), '[broken');
+      library.dispose();
+    },
+  );
 
   testWidgets('announcement cards expose a bookmark action and toggle it', (
     tester,
@@ -156,7 +169,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(library.items, hasLength(1));
     expect(library.items.single.kind, BookmarkKind.announcement);
-    expect(find.byTooltip('Remove announcement from bookmarks'), findsOneWidget);
+    expect(
+      find.byTooltip('Remove announcement from bookmarks'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byTooltip('Remove announcement from bookmarks'));
     await tester.pumpAndSettle();
@@ -205,85 +221,30 @@ void main() {
     library.dispose();
   });
 
-  testWidgets('bookmarks filter by type and removing the last shows empty state', (
-    tester,
-  ) async {
-    final library = BookmarkLibrary(PrivateStore());
-    await library.load();
-    await library.toggle(
-      _item(
-        kind: BookmarkKind.announcement,
-        id: _announcementUrl.toString(),
-        title: 'TEST ONLY announcement',
-        url: _announcementUrl,
-      ),
-    );
-    await library.toggle(
-      _item(
-        kind: BookmarkKind.result,
-        id: 'publication-id',
-        title: 'TEST ONLY result',
-        url: _resultUrl,
-      ),
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: BookmarksScreen(library: library),
-          ),
+  testWidgets(
+    'bookmarks filter by type and removing the last shows empty state',
+    (tester) async {
+      final library = BookmarkLibrary(PrivateStore());
+      await library.load();
+      await library.toggle(
+        _item(
+          kind: BookmarkKind.announcement,
+          id: _announcementUrl.toString(),
+          title: 'TEST ONLY announcement',
+          url: _announcementUrl,
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await library.toggle(
+        _item(
+          kind: BookmarkKind.result,
+          id: 'publication-id',
+          title: 'TEST ONLY result',
+          url: _resultUrl,
+        ),
+      );
 
-    expect(find.text('TEST ONLY announcement'), findsOneWidget);
-    expect(find.text('TEST ONLY result'), findsOneWidget);
-    final source = tester.widget<SourceButton>(
-      find.widgetWithText(SourceButton, 'Open official source').first,
-    );
-    expect(source.uri, _announcementUrl);
-
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Announcements'));
-    await tester.pumpAndSettle();
-    expect(find.text('TEST ONLY announcement'), findsOneWidget);
-    expect(find.text('TEST ONLY result'), findsNothing);
-    await tester.tap(find.byTooltip('Remove bookmark'));
-    await tester.pumpAndSettle();
-    expect(find.text('No announcements saved'), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Results'));
-    await tester.pumpAndSettle();
-    expect(find.text('TEST ONLY result'), findsOneWidget);
-    await tester.tap(find.byTooltip('Remove bookmark'));
-    await tester.pumpAndSettle();
-    expect(find.text('Nothing saved yet'), findsOneWidget);
-    library.dispose();
-  });
-
-  testWidgets('bookmarks reflow with large text in both themes', (tester) async {
-    tester.view.physicalSize = const Size(320, 720);
-    tester.view.devicePixelRatio = 1;
-    tester.platformDispatcher.textScaleFactorTestValue = 2;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-    final library = BookmarkLibrary(PrivateStore());
-    await library.load();
-    await library.toggle(
-      _item(
-        kind: BookmarkKind.result,
-        id: 'publication-id',
-        title: 'TEST ONLY very long official result publication title Ñ',
-        url: _resultUrl,
-      ),
-    );
-
-    for (final brightness in [Brightness.light, Brightness.dark]) {
       await tester.pumpWidget(
         MaterialApp(
-          theme: appTheme(brightness),
           home: Scaffold(
             body: SingleChildScrollView(
               child: BookmarksScreen(library: library),
@@ -292,8 +253,93 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-    }
-    library.dispose();
-  });
+
+      expect(find.text('TEST ONLY announcement'), findsOneWidget);
+      expect(find.text('TEST ONLY result'), findsOneWidget);
+      final source = tester.widget<SourceButton>(
+        find.widgetWithText(SourceButton, 'Open official source').first,
+      );
+      expect(source.uri, _announcementUrl);
+
+      expect(find.byType(ChoiceChip), findsNothing);
+      await tester.tap(find.byTooltip('Filter bookmarks'));
+      await tester.pumpAndSettle();
+      await tester.tap(_filterOption('Announcements'));
+      await tester.pumpAndSettle();
+      expect(find.text('TEST ONLY announcement'), findsOneWidget);
+      expect(find.text('TEST ONLY result'), findsNothing);
+      await tester.tap(find.byTooltip('Remove bookmark'));
+      await tester.pumpAndSettle();
+      expect(find.text('No announcements saved'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Filter bookmarks'));
+      await tester.pumpAndSettle();
+      await tester.tap(_filterOption('Results'));
+      await tester.pumpAndSettle();
+      expect(find.text('TEST ONLY result'), findsOneWidget);
+      await tester.tap(find.byTooltip('Remove bookmark'));
+      await tester.pumpAndSettle();
+      expect(find.text('Nothing saved yet'), findsOneWidget);
+      library.dispose();
+    },
+  );
+
+  testWidgets(
+    'bookmark filter menu supports selection and dismissal with large text in both themes',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 720);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final library = BookmarkLibrary(PrivateStore());
+      await library.load();
+      await library.toggle(
+        _item(
+          kind: BookmarkKind.result,
+          id: 'publication-id',
+          title: 'TEST ONLY very long official result publication title Ñ',
+          url: _resultUrl,
+        ),
+      );
+
+      for (final brightness in [Brightness.light, Brightness.dark]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: appTheme(brightness),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: BookmarksScreen(library: library),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(ChoiceChip), findsNothing);
+        expect(find.text('Announcements'), findsNothing);
+        await tester.tap(find.byTooltip('Filter bookmarks'));
+        await tester.pumpAndSettle();
+        final all = _filterOption('All');
+        final results = _filterOption('Results');
+        expect(tester.widget<CheckedPopupMenuItem>(all).checked, isTrue);
+        expect(find.text('Announcements'), findsOneWidget);
+        await tester.tap(results);
+        await tester.pumpAndSettle();
+        expect(_filterOption('Results'), findsNothing);
+        await tester.tap(find.byTooltip('Filter bookmarks'));
+        await tester.pumpAndSettle();
+        expect(tester.widget<CheckedPopupMenuItem>(results).checked, isTrue);
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Filter bookmarks'));
+        await tester.pumpAndSettle();
+        expect(tester.widget<CheckedPopupMenuItem>(results).checked, isTrue);
+        await tester.tap(all);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      }
+      library.dispose();
+    },
+  );
 }

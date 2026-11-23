@@ -93,6 +93,7 @@ class _ExamHomeState extends State<_ExamHome> {
   late final _lists = widget.lists ?? ListStore();
   late final _push = PushPreferences(store: _store);
   int _destination = 0, _generation = 0;
+  int _previousDestination = 0;
   int _advisoryRevision = 0;
   bool get _inUpdates => widget.advisoryPilot && _destination == 1;
   bool get _inBookmarks => _destination == (widget.advisoryPilot ? 2 : 1);
@@ -389,10 +390,7 @@ class _ExamHomeState extends State<_ExamHome> {
       );
     }
     if (_inBookmarks) {
-      return BookmarksScreen(
-        library: _bookmarks,
-        historyLibrary: _history,
-      );
+      return BookmarksScreen(library: _bookmarks, historyLibrary: _history);
     }
     if (_inHistory) return HistoryScreen(library: _history);
     if (_restoringSelection) {
@@ -445,12 +443,17 @@ class _ExamHomeState extends State<_ExamHome> {
     return ExamShell(
       advisoryPilot: widget.advisoryPilot,
       destination: _destination,
-      onNavigate: (index) => setState(() => _destination = index),
+      onNavigate: (index) => setState(() {
+        _previousDestination = _destination;
+        _destination = index;
+      }),
+      onBack: () => setState(() => _destination = _previousDestination),
       examTitle: _selected?.exam.title,
       examDetails: _selected?.details,
       restoringSelection: _restoringSelection,
       onChoose: _change,
-      canRefresh: _selected != null && !_inSettings && !_inBookmarks && !_inHistory,
+      canRefresh:
+          _selected != null && !_inSettings && !_inBookmarks && !_inHistory,
       onRefresh: _inUpdates
           ? () => setState(() => _advisoryRevision++)
           : _inBookmarks || _inHistory || _loading

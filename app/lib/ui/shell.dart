@@ -17,6 +17,7 @@ class ExamShell extends StatelessWidget {
     this.restoringSelection = false,
     this.canRefresh = false,
     this.onRefresh,
+    this.onBack,
     super.key,
   });
 
@@ -42,6 +43,7 @@ class ExamShell extends StatelessWidget {
   final bool restoringSelection, canRefresh;
   final VoidCallback onChoose;
   final VoidCallback? onRefresh;
+  final VoidCallback? onBack;
   final Widget child;
 
   @override
@@ -60,6 +62,13 @@ class ExamShell extends StatelessWidget {
       final bookmarks = destination == (advisoryPilot ? 2 : 1);
       final inHistory = destination == (advisoryPilot ? 3 : 2);
       final settings = destination == _titles.length - 1;
+      final settingsAction = IconButton(
+        tooltip: 'Settings',
+        color: Colors.white,
+        onPressed: () => onNavigate(_titles.length - 1),
+        icon: const DesignIcon(DesignGlyph.settings),
+      );
+      final back = BackButton(onPressed: onBack, color: Colors.white);
       final showContext =
           !settings && !bookmarks && !inHistory && !restoringSelection;
       final contextCard = ExamContextCard(
@@ -79,147 +88,162 @@ class ExamShell extends StatelessWidget {
       );
       return AnnotatedRegion<SystemUiOverlayStyle>(
         value: designSystemBars(header, surface),
-        child: Scaffold(
-          appBar: compact
-              ? AppBar(
-                  title: Text(title),
-                  toolbarHeight: math.max(56, scaler.scale(28) + 8),
-                  actions: [if (canRefresh) refresh],
-                )
-              : null,
-          body: ColoredBox(
-            color: header,
-            child: SafeArea(
-              top: !compact,
-              bottom: wide,
-              child: ColoredBox(
-                color: theme.scaffoldBackgroundColor,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (wide)
-                      NavigationRail(
-                        scrollable: true,
-                        labelType: NavigationRailLabelType.all,
-                        useIndicator: true,
-                        selectedIndex: destination,
-                        onDestinationSelected: onNavigate,
-                        destinations: [
-                          for (var i = 0; i < _titles.length; i++)
-                            NavigationRailDestination(
-                              icon: DesignIcon(_glyphs[i]),
-                              label: Text(_titles[i]),
-                            ),
-                        ],
-                      ),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        key: ValueKey(destination),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (!compact)
-                              ColoredBox(
-                                color: header,
-                                child: Align(
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: maxContentWidth,
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        screenGutter,
-                                        24,
-                                        screenGutter,
-                                        16,
+        child: PopScope(
+          canPop: !settings,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop && settings) onBack?.call();
+          },
+          child: Scaffold(
+            appBar: compact
+                ? AppBar(
+                    title: Text(title),
+                    leading: settings ? back : null,
+                    toolbarHeight: math.max(56, scaler.scale(28) + 8),
+                    actions: [
+                      if (canRefresh) refresh,
+                      if (!settings) settingsAction,
+                    ],
+                  )
+                : null,
+            body: ColoredBox(
+              color: header,
+              child: SafeArea(
+                top: !compact,
+                bottom: wide || settings,
+                child: ColoredBox(
+                  color: theme.scaffoldBackgroundColor,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (wide && !settings)
+                        NavigationRail(
+                          scrollable: true,
+                          labelType: NavigationRailLabelType.all,
+                          useIndicator: true,
+                          selectedIndex: destination,
+                          onDestinationSelected: onNavigate,
+                          destinations: [
+                            for (var i = 0; i < _titles.length - 1; i++)
+                              NavigationRailDestination(
+                                icon: DesignIcon(_glyphs[i]),
+                                label: Text(_titles[i]),
+                              ),
+                          ],
+                        ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          key: ValueKey(destination),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (!compact)
+                                ColoredBox(
+                                  color: header,
+                                  child: Align(
+                                    child: ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: maxContentWidth,
                                       ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'ResView',
-                                            style: theme.textTheme.bodySmall
-                                                ?.copyWith(
-                                                  color: headerSecondary,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Semantics(
-                                                  header: true,
-                                                  child: Text(
-                                                    title,
-                                                    style: theme
-                                                        .textTheme
-                                                        .headlineMedium
-                                                        ?.copyWith(
-                                                          color: Colors.white,
-                                                        ),
-                                                  ),
-                                                ),
-                                              ),
-                                              if (canRefresh) refresh,
-                                            ],
-                                          ),
-                                          if (settings) ...[
-                                            const SizedBox(height: 4),
+                                      child: Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          screenGutter,
+                                          24,
+                                          screenGutter,
+                                          16,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
                                             Text(
-                                              'Privacy and preferences',
-                                              style: theme.textTheme.bodyLarge
+                                              'ResView',
+                                              style: theme.textTheme.bodySmall
                                                   ?.copyWith(
                                                     color: headerSecondary,
                                                   ),
                                             ),
-                                          ] else if (showContext &&
-                                              examTitle != null) ...[
-                                            const SizedBox(height: 16),
-                                            contextCard,
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                if (settings) back,
+                                                Expanded(
+                                                  child: Semantics(
+                                                    header: true,
+                                                    child: Text(
+                                                      title,
+                                                      style: theme
+                                                          .textTheme
+                                                          .headlineMedium
+                                                          ?.copyWith(
+                                                            color: Colors.white,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (canRefresh) refresh,
+                                                if (!settings) settingsAction,
+                                              ],
+                                            ),
+                                            if (settings) ...[
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Privacy and preferences',
+                                                style: theme.textTheme.bodyLarge
+                                                    ?.copyWith(
+                                                      color: headerSecondary,
+                                                    ),
+                                              ),
+                                            ] else if (showContext &&
+                                                examTitle != null) ...[
+                                              const SizedBox(height: 16),
+                                              contextCard,
+                                            ],
                                           ],
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            DesignSheet(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  if (showContext &&
-                                      (compact || examTitle == null)) ...[
-                                    contextCard,
-                                    const SizedBox(height: 16),
+                              DesignSheet(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (showContext &&
+                                        (compact || examTitle == null)) ...[
+                                      contextCard,
+                                      const SizedBox(height: 16),
+                                    ],
+                                    child,
                                   ],
-                                  child,
-                                ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          bottomNavigationBar: wide
-              ? null
-              : DecoratedBox(
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: theme.colorScheme.shadow.withValues(alpha: 0.12),
-                        blurRadius: 16,
-                        offset: const Offset(0, -3),
                       ),
                     ],
                   ),
-                  child: _buildNavigation(context, constraints.maxWidth),
                 ),
+              ),
+            ),
+            bottomNavigationBar: wide || settings
+                ? null
+                : DecoratedBox(
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colorScheme.shadow.withValues(
+                            alpha: 0.12,
+                          ),
+                          blurRadius: 16,
+                          offset: const Offset(0, -3),
+                        ),
+                      ],
+                    ),
+                    child: _buildNavigation(context, constraints.maxWidth),
+                  ),
+          ),
         ),
       );
     },
@@ -231,7 +255,8 @@ class ExamShell extends StatelessWidget {
     final scaler = MediaQuery.textScalerOf(context);
     final direction = Directionality.of(context);
     final labelStyle = designType(12, 16, FontWeight.w600);
-    final wordWidths = _titles.map((title) {
+    final navigationTitles = _titles.take(_titles.length - 1).toList();
+    final wordWidths = navigationTitles.map((title) {
       final word = TextPainter(
         text: TextSpan(text: title, style: labelStyle),
         textDirection: direction,
@@ -243,7 +268,9 @@ class ExamShell extends StatelessWidget {
     }).toList();
     final available = width - MediaQuery.paddingOf(context).horizontal;
     if (scaler.scale(12) > 15.6 ||
-        wordWidths.any((minimum) => minimum > available / _titles.length)) {
+        wordWidths.any(
+          (minimum) => minimum > available / navigationTitles.length,
+        )) {
       return _buildWrappingNavigation(context, available, wordWidths);
     }
     return NavigationBar(
@@ -263,7 +290,7 @@ class ExamShell extends StatelessWidget {
       selectedIndex: destination,
       onDestinationSelected: onNavigate,
       destinations: [
-        for (var i = 0; i < _titles.length; i++)
+        for (var i = 0; i < navigationTitles.length; i++)
           NavigationDestination(
             icon: DesignIcon(_glyphs[i]),
             label: _titles[i],
@@ -291,10 +318,12 @@ class ExamShell extends StatelessWidget {
           child: SingleChildScrollView(
             child: Wrap(
               children: [
-                for (final (index, title) in _titles.indexed)
+                for (final (index, title)
+                    in _titles.take(_titles.length - 1).indexed)
                   SizedBox(
                     width: fits
-                        ? wordWidths[index] + (width - total) / _titles.length
+                        ? wordWidths[index] +
+                              (width - total) / wordWidths.length
                         : width / 2,
                     child: Semantics(
                       button: true,

@@ -145,13 +145,13 @@ void main() {
       expect(await storage.read(key: 'name'), isNull);
       expect(await PrivateStore().readSelection(), selection);
       expect(find.text('Bookmarks'), findsOneWidget);
-      expect(find.text('Settings'), findsOneWidget);
+      expect(find.byTooltip('Settings'), findsOneWidget);
       expect(find.text('Check name'), findsNothing);
       expect(find.text('Source freshness'), findsNothing);
       expect(find.text('Stale'), findsNothing);
       expect(find.text('Results released'), findsOneWidget);
       expect(find.text('View list of passers'), findsOneWidget);
-      await tester.tap(find.text('Settings').last);
+      await tester.tap(find.byTooltip('Settings'));
       await tester.pumpAndSettle();
       expect(find.text('Saved name'), findsNothing);
       expect(find.text('Offline lists'), findsNothing);
@@ -217,7 +217,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(await PrivateStore().readSelection(), selection);
       expect(repository.resultReads, [selection]);
-      await tester.tap(find.text('Settings').last);
+      await tester.tap(find.byTooltip('Settings'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Change'));
       await tester.pumpAndSettle();
@@ -229,7 +229,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Results').last);
+      await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
       expect(await PrivateStore().readSelection(), isNull);
       expect(find.text('Choose exam'), findsOneWidget);
@@ -330,7 +330,7 @@ void main() {
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(ExamApp(listStore: TestListStore()));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Settings').last);
+      await tester.tap(find.byTooltip('Settings'));
       await tester.pumpAndSettle();
       await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
       await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));

@@ -44,29 +44,39 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Heading('Saved items', top: 0),
+          Row(
+            children: [
+              const Expanded(child: Heading('Saved items', top: 0)),
+              PopupMenuButton<_BookmarkFilter>(
+                tooltip: 'Filter bookmarks',
+                initialValue: _filter,
+                icon: Icon(
+                  Icons.filter_list,
+                  color: _filter == _BookmarkFilter.all
+                      ? null
+                      : Theme.of(context).colorScheme.primary,
+                ),
+                onSelected: (filter) => setState(() => _filter = filter),
+                itemBuilder: (context) => [
+                  for (final filter in _BookmarkFilter.values)
+                    CheckedPopupMenuItem(
+                      value: filter,
+                      checked: _filter == filter,
+                      child: Text(switch (filter) {
+                        _BookmarkFilter.all => 'All',
+                        _BookmarkFilter.announcements => 'Announcements',
+                        _BookmarkFilter.results => 'Results',
+                      }),
+                    ),
+                ],
+              ),
+            ],
+          ),
           Text(
             'Your saved announcements and results.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              for (final filter in _BookmarkFilter.values)
-                ChoiceChip(
-                  label: Text(switch (filter) {
-                    _BookmarkFilter.all => 'All',
-                    _BookmarkFilter.announcements => 'Announcements',
-                    _BookmarkFilter.results => 'Results',
-                  }),
-                  selected: _filter == filter,
-                  onSelected: (_) => setState(() => _filter = filter),
-                ),
-            ],
           ),
           const SizedBox(height: 16),
           if (widget.library.loading && all.isEmpty)
@@ -143,9 +153,8 @@ class _BookmarkCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   item.kindLabel,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                  style: Theme.of(context).textTheme.labelMedium
+                      ?.copyWith(color: Theme.of(context).colorScheme.primary),
                 ),
               ),
               IconButton(
@@ -172,10 +181,11 @@ class _BookmarkCard extends StatelessWidget {
           Text(item.title, style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           Metadata(item.examName),
-          if (item.sittingLabel case final sitting?)
-            Metadata(sitting),
+          if (item.sittingLabel case final sitting?) Metadata(sitting),
           if (item.publishedAtUtc case final published?)
-            Metadata('Published ${dateLabel(published.toUtc().add(const Duration(hours: 8)))}'),
+            Metadata(
+              'Published ${dateLabel(published.toUtc().add(const Duration(hours: 8)))}',
+            ),
           const SizedBox(height: 8),
           SourceButton(
             'Open official source',

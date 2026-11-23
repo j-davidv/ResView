@@ -114,7 +114,7 @@ void main() {
               await PrivateStore().readSelection(),
               const ExamSelection('test-only', 'test-sitting', 'general'),
             );
-            await tap(tester, find.text('Settings').last);
+            await tap(tester, find.byTooltip('Settings'));
             expect(find.byTooltip('Refresh available metadata'), findsNothing);
             if (phone && scale == 1) await capture('settings');
             await tap(tester, find.text('Change'));
@@ -170,7 +170,7 @@ void main() {
           );
           await tester.pageBack();
           await settle(tester);
-          await tap(tester, find.text('Settings').last);
+          await tap(tester, find.byTooltip('Settings'));
           await tap(tester, find.text('Results').last);
           expect(find.text('Not released'), findsOneWidget);
           expect(tester.takeException(), isNull);
