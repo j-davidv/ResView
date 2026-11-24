@@ -6,6 +6,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'alerts/push_preferences.dart';
+import 'alerts/alert_inbox.dart';
+import 'alerts/exam_alert.dart';
+import 'alerts/phone_alerts.dart';
+import 'ui/alerts.dart';
 import 'data/exam_repository.dart';
 import 'data/firestore_repository.dart';
 import 'domain/models.dart';
@@ -29,8 +33,8 @@ export 'ui/design.dart' show appTheme;
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   const project = String.fromEnvironment('FIREBASE_PROJECT_ID');
-  if (project.isNotEmpty) {
-    try {
+  try {
+    if (project.isNotEmpty) {
       await Firebase.initializeApp(
         options: const FirebaseOptions(
           apiKey: String.fromEnvironment('FIREBASE_API_KEY'),
@@ -39,8 +43,13 @@ Future<void> main() async {
           projectId: project,
         ),
       );
-      await FirebaseMessaging.instance.setAutoInitEnabled(false);
-    } catch (_) {}
+    } else {
+      // Supports the native Android configuration produced by FlutterFire.
+      await Firebase.initializeApp();
+    }
+    await FirebaseMessaging.instance.setAutoInitEnabled(false);
+  } catch (_) {
+    // Public browsing and local alerts remain available without phone setup.
   }
   runApp(const ExamApp());
 }
@@ -86,12 +95,14 @@ class _ExamHome extends StatefulWidget {
   State<_ExamHome> createState() => _ExamHomeState();
 }
 
-class _ExamHomeState extends State<_ExamHome> {
+class _ExamHomeState extends State<_ExamHome> with WidgetsBindingObserver {
   final _store = PrivateStore();
   late final _bookmarks = BookmarkLibrary(_store);
   late final _history = HistoryLibrary(_store);
   late final _lists = widget.lists ?? ListStore();
   late final _push = PushPreferences(store: _store);
+  late final _inbox = AlertInbox(_store);
+  final _phoneAlerts = PhoneAlerts();
   int _destination = 0, _generation = 0;
   int _previousDestination = 0;
   int _advisoryRevision = 0;
@@ -117,6 +128,14 @@ class _ExamHomeState extends State<_ExamHome> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _inbox.addListener(_alertsChanged);
+    unawaited(_inbox.load().catchError((Object _) {}));
+    unawaited(
+      _phoneAlerts
+          .start(onReceive: _receiveAlert, onOpen: _openAlert)
+          .catchError((Object _) {}),
+    );
     _restoreLaunch();
     _restorePush();
     _restoreBookmarks();
@@ -215,6 +234,61 @@ class _ExamHomeState extends State<_ExamHome> {
   Future<void> _restoreBookmarks() => _bookmarks.load();
   Future<void> _restoreHistory() => _history.load();
 
+  void _alertsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _selected != null && !_loading) {
+      unawaited(_refresh());
+    }
+  }
+
+  Future<void> _receiveAlert(ExamAlert alert) async {
+    final selection = _selected?.selection ?? await _store.readSelection();
+    // A queued message for an old exam must not interrupt a new selection.
+    if (selection == alert.selection) await _inbox.receive(alert);
+  }
+
+  Future<void> _openAlert(ExamAlert alert) async {
+    final selection = _selected?.selection ?? await _store.readSelection();
+    if (!mounted || selection != alert.selection) return;
+    await _inbox.markRead(alert.selection, id: alert.id);
+    if (mounted) await openSource(context, alert.url);
+  }
+
+  Future<void> _showAlerts() async {
+    final selection = _selected?.selection;
+    if (selection == null) return;
+    await _inbox.markRead(selection);
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => AlertsScreen(
+          inbox: _inbox,
+          selection: selection,
+          onOpen: (alert) => unawaited(_openAlert(alert)),
+        ),
+      ),
+    );
+  }
+
+  void _observeUpdates(AdvisoryFeed feed) {
+    final selected = _selected;
+    if (selected == null) return;
+    unawaited(
+      _inbox
+          .observe(
+            selection: selected.selection,
+            sitting: selected.sitting,
+            publications: _publications,
+            feed: feed,
+          )
+          .catchError((Object _) {}),
+    );
+  }
+
   Future<void> _restorePush() async {
     try {
       await _push.restore();
@@ -262,6 +336,10 @@ class _ExamHomeState extends State<_ExamHome> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _phoneAlerts.dispose();
+    _inbox.removeListener(_alertsChanged);
+    _inbox.dispose();
     _launchProgress?.cancel();
     _push.dispose();
     _bookmarks.dispose();
@@ -290,6 +368,17 @@ class _ExamHomeState extends State<_ExamHome> {
         feedback(
           context,
           'Selection could not be saved. It remains available for this session.',
+        );
+      }
+    }
+    if (!mounted || generation != _generation) return;
+    try {
+      await _push.updateSelection(selected.selection);
+    } catch (_) {
+      if (mounted) {
+        feedback(
+          context,
+          'Your exam was saved. Reconnect phone alerts in Settings.',
         );
       }
     }
@@ -347,6 +436,15 @@ class _ExamHomeState extends State<_ExamHome> {
         _version = version;
         _monitorStatus = monitorStatus;
         _hasResultsSnapshot = true;
+        unawaited(
+          _inbox
+              .observe(
+                selection: selection,
+                sitting: sitting,
+                publications: publications,
+              )
+              .catchError((Object _) {}),
+        );
       }
     } catch (_) {
       if (current()) _failed = true;
@@ -396,6 +494,7 @@ class _ExamHomeState extends State<_ExamHome> {
         lists: _lists,
         bookmarks: _bookmarks,
         history: _history,
+        alerts: _inbox,
         push: _push,
         selection: _selected?.selection,
         examTitle: _selected?.exam.title,
@@ -441,6 +540,7 @@ class _ExamHomeState extends State<_ExamHome> {
         examTitle: _selected!.exam.title,
         bookmarks: _bookmarks,
         historyLibrary: _history,
+        onFeedLoaded: _observeUpdates,
         revision: _advisoryRevision,
       );
     }
@@ -483,6 +583,8 @@ class _ExamHomeState extends State<_ExamHome> {
       onBack: () => setState(() => _destination = _previousDestination),
       examTitle: _selected?.exam.title,
       examDetails: _selected?.details,
+      onAlerts: _selected == null ? null : () => unawaited(_showAlerts()),
+      unreadAlerts: _inbox.unread(_selected?.selection),
       restoringSelection: _restoringSelection,
       onChoose: _change,
       canRefresh:
@@ -495,6 +597,16 @@ class _ExamHomeState extends State<_ExamHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_inbox.unread(_selected?.selection) > 0 && !_inSettings)
+            Notice(
+              'New exam alerts',
+              '${_inbox.unread(_selected?.selection)} unread alerts for your selected exam.',
+              glyph: DesignGlyph.pushAlerts,
+              action: OutlinedButton(
+                onPressed: () => unawaited(_showAlerts()),
+                child: const Text('View alerts'),
+              ),
+            ),
           if (_launchReadFailed)
             Notice(
               'Device preferences',

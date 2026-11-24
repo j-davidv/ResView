@@ -13,7 +13,9 @@ service cloud.firestore {
 
     function validPreference(data) {
       return data.keys().hasAll(['enabled', 'selection', 'token', 'lastActiveAtUtc'])
-        && data.keys().hasOnly(['enabled', 'selection', 'token', 'lastActiveAtUtc'])
+        && data.keys().hasOnly(['enabled', 'selection', 'token', 'lastActiveAtUtc', 'registrationId'])
+        && (!('registrationId' in data) ||
+            (data.registrationId is string && data.registrationId.size() > 0 && data.registrationId.size() <= 64))
         && data.enabled == true
         && data.selection is map
         && data.selection.keys().hasAll(['examId', 'sittingId', 'categoryId'])

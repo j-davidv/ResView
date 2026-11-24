@@ -6,6 +6,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Public browsing also supports builds without phone-alert configuration.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 val signingPropertiesFile = rootProject.file("key.properties")
 val signingProperties = Properties()
 if (signingPropertiesFile.exists()) {
