@@ -47,7 +47,8 @@ class Providers:
                     batch.set(self.db.collection(collection).document(row['id']), record)
                 batch.commit()
         current = {row['id'] for row in catalog['sittings']}
-        unparsed_exams = {row.get('examId') for row in catalog['review'] if row.get('status') != 'cancelled'}
+        unparsed_exams = {row.get('examId') for row in catalog['review']
+                         if row.get('status') != 'cancelled' and row.get('field') != 'targetReleaseDate'}
         retired = [row for url in catalog.get('catalogUrls', [catalog['catalogUrl']])
             for row in self.db.collection('sittings').where(
             filter=FieldFilter('catalogUrl', '==', url)).stream()

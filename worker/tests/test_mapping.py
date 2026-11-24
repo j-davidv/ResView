@@ -15,6 +15,44 @@ def table(rows):
 
 
 class MappingTests(unittest.TestCase):
+    def test_teacher_target_release_is_imported_with_original_text(self):
+        catalog = parse_catalog(table([
+            ['52', 'Professional Teachers', 'September 20, 2026', 'Sun', 'NCR',
+             'May 22, 2026', 'July 23, 2026', 'November 27, 2026', 'Click Here'],
+        ]), ROOT + '/2026-schedule-examination', NOW)
+        sitting = catalog['sittings'][0]
+        self.assertEqual(sitting.get('targetReleaseDate'), '2026-11-27T00:00:00+00:00')
+        self.assertEqual(sitting['officialTargetReleaseDate'], 'November 27, 2026')
+        self.assertEqual(sitting['catalogUrl'], ROOT + '/2026-schedule-examination')
+
+    def test_unknown_or_outdated_target_keeps_sitting_without_inventing_date(self):
+        for target in ('', 'To be announced', 'November 27 or 30, 2026',
+                       'February 30, 2026', 'September 19, 2026'):
+            with self.subTest(target=target):
+                catalog = parse_catalog(table([
+                    ['52', 'Professional Teachers', 'September 20, 2026', 'Sun', 'NCR',
+                     '', '', target],
+                ]), ROOT + '/2026-schedule-examination', NOW)
+                self.assertEqual(len(catalog['sittings']), 1)
+                self.assertIn('targetReleaseDate', catalog['sittings'][0])
+                self.assertIsNone(catalog['sittings'][0]['targetReleaseDate'])
+                self.assertEqual(catalog['sittings'][0]['officialTargetReleaseDate'], target)
+                self.assertEqual(bool(catalog['review']), bool(target))
+
+    def test_missing_target_column_and_corrected_targets_are_supported(self):
+        catalog = parse_catalog(table([
+            ['1', 'Testers', 'May 1, 2026', '', 'NCR'],
+        ]), ROOT + '/2026-schedule-examination', NOW)
+        self.assertIn('targetReleaseDate', catalog['sittings'][0])
+        self.assertIsNone(catalog['sittings'][0]['targetReleaseDate'])
+        for target, expected in [('November 27, 2026', '2026-11-27'),
+                                 ('December 1, 2026', '2026-12-01'), ('', None)]:
+            catalog = parse_catalog(table([
+                ['52', 'Professional Teachers', 'September 20, 2026', '', 'NCR', '', '', target],
+            ]), ROOT + '/2026-schedule-examination', NOW)
+            self.assertEqual(catalog['sittings'][0]['targetReleaseDate'],
+                             expected + 'T00:00:00+00:00' if expected else None)
+
     def test_nutritionists_dietitians_result_matches_singular_schedule_label(self):
         catalog = parse_catalog(table([
             ['1', 'Nutritionist-Dietitians', 'November 12 and 13, 2026', '', 'NCR'],

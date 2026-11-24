@@ -263,8 +263,24 @@ def parse_catalog(body, url, now, overrides=()):
             if not row[0].isdigit() and not (special or oral):
                 raise ValueError('Unrecognized unnumbered sitting.')
             sitting_id = f'{exam_id}-{start.date().isoformat()}'
+            official_target = row[7].strip() if len(row) > 7 else ''
+            target = None
+            if official_target:
+                try:
+                    if not re.fullmatch(r'[A-Za-z]+ \d{1,2}, 20\d{2}', official_target):
+                        raise ValueError('Unrecognized target release date.')
+                    target_date = datetime.strptime(official_target, '%B %d, %Y').replace(tzinfo=timezone.utc)
+                    if target_date < end:
+                        raise ValueError('Target predates the current examination schedule.')
+                    target = target_date.isoformat()
+                except ValueError:
+                    review.append({'examId': exam_id, 'sittingId': sitting_id,
+                                   'field': 'targetReleaseDate', 'officialDates': dates,
+                                   'officialTargetReleaseDate': official_target,
+                                   'reason': 'Target release date requires review.'})
             sittings.append({'id': sitting_id, 'examId': exam_id, 'start': start.isoformat(),
                              'end': end.isoformat(), 'type': 'special' if special else 'oral' if oral else 'domestic',
+                             'targetReleaseDate': target, 'officialTargetReleaseDate': official_target,
                              'location': row[4].split('Resolution')[0].split('Reso no.')[0].strip() if special or oral else '',
                              'categories': ({'elementary': 'Elementary', 'secondary': 'Secondary'}
                                             if 'Professional Teachers' in title else {'all': 'All successful examinees'}),

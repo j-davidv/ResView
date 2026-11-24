@@ -1,5 +1,7 @@
 # PRC publication worker
 
+Sitting records include an optional `targetReleaseDate` as a UTC-midnight calendar date and the original `officialTargetReleaseDate` text, alongside existing schedule provenance. Empty, ambiguous, impossible or pre-exam targets remain null and nonempty invalid targets enter review. These warnings do not prevent retirement of superseded sittings. Targets never create result publications or infer examination outcomes.
+
 Imports official schedules and reviewed PRC result announcements from 2026 onward into Firestore. Names entered in Android never reach this worker. There is no delivery adapter; delivery remains disabled.
 
 ```powershell

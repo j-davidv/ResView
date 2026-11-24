@@ -1,10 +1,26 @@
 import unittest
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 from worker.providers import Providers, identifier, review_identifier
+from worker.source import parse_catalog
 
 
 class ProviderTests(unittest.TestCase):
+    def test_target_warning_does_not_keep_a_replaced_sitting_active(self):
+        body = (b'<table><tr><td>52</td><td>Professional Teachers</td>'
+                b'<td>November 30, 2026</td><td>Mon</td><td>NCR</td><td></td><td></td>'
+                b'<td>November 27, 2026</td></tr></table>')
+        catalog = parse_catalog(body, 'https://www.prc.gov.ph/2026-schedule-examination',
+                                datetime(2026, 11, 24, tzinfo=timezone.utc))
+        database = Mock()
+        database.collection.return_value.where.return_value.stream.return_value = [
+            Mock(id='professional-teachers-2026-09-20',
+                 to_dict=lambda: {'examId': 'professional-teachers'})]
+        Providers(database).catalog(catalog)
+        database.batch.return_value.update.assert_called_once_with(
+            database.collection.return_value.document.return_value, {'active': False})
+
     def test_keyless_revalidation_only_reuses_identical_public_asset(self):
         provider = Providers(Mock(), 'example.supabase.co')
         provider.download = Mock(return_value=b'original')
