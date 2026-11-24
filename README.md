@@ -2,7 +2,7 @@
 
 ResView is an Android app for Philippine board exam takers. Choose your exam to read official result announcements and follow updates from the Professional Regulation Commission (PRC).
 
-[Download ResView 1.0.1 for Android](https://github.com/j-davidv/ResView/releases/download/v1.0.1/ResView-1.0.1.apk). Requires Android 7.0 or newer.
+[Download ResView 1.0.2 for Android](https://github.com/j-davidv/ResView/releases/download/v1.0.2/ResView-1.0.2.apk). Requires Android 7.0 or newer.
 
 ## Choose your exam
 
