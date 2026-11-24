@@ -62,6 +62,7 @@ test('all clients are denied public and worker writes', async () => {
 test('owner can register, restore, rotate token, change selection and delete', async () => {
   const ref = doc(env.authenticatedContext('owner').firestore(), 'pushPreferences/owner');
   await assertSucceeds(setDoc(ref, valid()));
+  await assertSucceeds(updateDoc(ref, { registrationId: 'test-consent-session', lastActiveAtUtc: serverTimestamp() }));
   await assertSucceeds(getDoc(ref));
   await assertSucceeds(updateDoc(ref, { token: 'rotated-token', lastActiveAtUtc: serverTimestamp() }));
   await assertSucceeds(setDoc(ref, { ...valid(), selection: { ...selection, categoryId: 'another-category' } }));
@@ -87,6 +88,7 @@ test('invalid registration and update payloads are rejected', async () => {
   const invalid = [
     { name: 'private name' }, { email: 'private@example.invalid' }, { outcome: 'private' }, { role: 'admin' },
     { enabled: false }, { enabled: 'true' }, { token: '' }, { token: 42 }, { token: 'x'.repeat(4097) },
+    { registrationId: '' }, { registrationId: 42 }, { registrationId: 'x'.repeat(65) },
     { selection: null }, { selection: {} }, { selection: { ...selection, email: 'private@example.invalid' } },
     ...Object.keys(selection).flatMap(key => [
       { selection: { ...selection, [key]: '' } },

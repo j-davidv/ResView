@@ -2,7 +2,21 @@
 
 Sitting records include an optional `targetReleaseDate` as a UTC-midnight calendar date and the original `officialTargetReleaseDate` text, alongside existing schedule provenance. Empty, ambiguous, impossible or pre-exam targets remain null and nonempty invalid targets enter review. These warnings do not prevent retirement of superseded sittings. Targets never create result publications or infer examination outcomes.
 
-Imports official schedules and reviewed PRC result announcements from 2026 onward into Firestore. Names entered in Android never reach this worker. There is no delivery adapter; delivery remains disabled.
+Imports official schedules and reviewed PRC result announcements from 2026 onward into Firestore. Names entered in Android never reach this worker. Metadata ingestion does not send notifications; the separate opt-in sender below defaults to delivery disabled.
+
+## Selected-exam phone alerts
+
+`python -m worker.notifications --delivery disabled` reads registered preferences and public metadata but never writes state or sends messages. `--delivery send` explicitly enables FCM delivery. `--uid <registration-document-id>` restricts either mode to one consenting registration for rollout. `FIREBASE_PROJECT_ID` and authorized Application Default Credentials are required. Use the existing GitHub OIDC service account rather than exporting a private key.
+
+The sender covers new verified result publications for the exact exam/sitting/category, new official exam-wide announcements (retaining their official titles), schedule-change announcements, and changed fields in an existing active sitting's official schedule. It never infers results from target dates or cancellation from retirement. A changed sitting id is not silently mapped to a different sitting; the user must choose the replacement. General news may apply to a different sitting of the same exam, so the original official title remains visible.
+
+The first sending scan per registration/selection establishes a baseline with no historical alerts. New consent sessions also reset the baseline. New discoveries on the same Philippine calendar day are allowed despite PRC dates having midnight precision. Older backfills are excluded. Results and news with the same canonical official URL share one identity. Device tokens and selections are checked again immediately before sending; deletion, selection changes, and token rotation invalidate an earlier registration snapshot.
+
+Private state lives in `workerState/push-*`; receipts live in `deliveryAttempts/*`. Successful or ambiguous attempts are not re-sent. Explicit transient rejections are retained for the next run. A connection failure can have an unknown delivery outcome: it is recorded as `unknown`, reported as a failure, and not automatically retried, avoiding duplicate notifications at the expense of possible message loss. Android also replaces duplicate notifications with the same event tag. Counts-only logs never include tokens, user identifiers, credentials, or notification payloads. Retain receipts for at least the event replay window when introducing a cleanup policy.
+
+Deployment requires an authorized project administrator to grant the worker service account `roles/firebasecloudmessaging.admin`, read access to private `pushPreferences`, and write access to its private state/receipts, in addition to existing public metadata access. Deploy the updated Firestore preference rules before using the new app's consent sessions. The sender's default bound is 200 registrations and 100 events per selection; review quota and capacity before increasing it.
+
+The PRC monitor workflow has an explicit manual **push_alerts** input and a scheduled sender gated by repository variable `RESVIEW_PUSH_ENABLED=true`. These operate only on `main`, after the test job and (for schedules) a successful metadata/history scan. Publishing this code, changing IAM/rules, or setting that variable is a separate deployment step. The existing metadata command's `--delivery disabled` remains unchanged. Verify one phone, establish the sending baseline, and then enable the scheduled sender. Result/schedule-catalog checks follow the existing hourly monitor; exam-wide news follows the existing daily history refresh. Push transport is not a guarantee of instant source discovery or delivery.
 
 ```powershell
 python -m venv .venv

@@ -18,6 +18,7 @@ class UpdatesScreen extends StatefulWidget {
     this.examId,
     this.bookmarks,
     this.historyLibrary,
+    this.onFeedLoaded,
     this.examTitle,
     required this.revision,
     super.key,
@@ -27,6 +28,7 @@ class UpdatesScreen extends StatefulWidget {
   final String? examId;
   final BookmarkLibrary? bookmarks;
   final HistoryLibrary? historyLibrary;
+  final ValueChanged<AdvisoryFeed>? onFeedLoaded;
   final String? examTitle;
   final int revision;
 
@@ -71,6 +73,7 @@ class _UpdatesState extends State<UpdatesScreen> {
       _expiry?.cancel();
       _failed = false;
       _feed = feed;
+      if (feed != null) widget.onFeedLoaded?.call(feed);
       final expiry = feed?.lastCheck?.add(AdvisoryFeed.maxAge);
       if (feed?.stale == false &&
           expiry != null &&
@@ -233,7 +236,8 @@ class _UpdateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canonicalUrl = item.url.host == 'prc.gov.ph' || item.url.host == 'www.prc.gov.ph'
+    final canonicalUrl =
+        item.url.host == 'prc.gov.ph' || item.url.host == 'www.prc.gov.ph'
         ? item.url.replace(
             host: 'www.prc.gov.ph',
             path: item.url.path.startsWith('/index.php/article/')

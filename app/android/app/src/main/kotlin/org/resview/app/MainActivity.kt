@@ -8,8 +8,20 @@ import java.io.File
 import android.os.StatFs
 import android.content.Intent
 import android.provider.Settings
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
+import android.os.Bundle
 
 class MainActivity : FlutterActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel("resview_alerts", "Exam alerts", NotificationManager.IMPORTANCE_HIGH)
+            channel.description = "Results, official exam updates, and verified schedule changes"
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
+    }
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
         val messenger = engine.dartExecutor.binaryMessenger
