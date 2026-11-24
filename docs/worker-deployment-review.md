@@ -1,5 +1,17 @@
 # Worker deployment status
 
+## November 24, 2026 schedule targets deployed
+
+The schedule-aware worker is published in [commit 5de749b](https://github.com/j-davidv/ResView/commit/5de749beef7514c23294a6d1bf5c1c28a4df3e19). All 94 worker tests pass locally and the hosted test job passed. The existing hourly results monitor remains enabled on the updated production branch.
+
+Both attempts of [hosted run 45312445034](https://github.com/j-davidv/ResView/actions/runs/45312445034) timed out while discovering PRC sources; their follow-up connectivity checks reached both PRC hosts. The authorized production refresh then completed on the workstation using the existing Firebase login and public metadata configuration, with zero publication failures. Delivery remained disabled and approved name assets were not regenerated. No new IAM grant, credential, dependency, or infrastructure was introduced.
+
+The successful scan timestamp is November 24 at 10:43:26 UTC+08:00; the run completed at 10:46:06. Independent anonymous verification at 10:46:22 confirmed fresh monitor health, 159 active sittings, 114 target dates and 127 publication associations. Every imported target and original target text matches a separate fresh fetch of the official PRC schedule. Existing publication associations still reference active sittings and valid categories.
+
+The September 20 Professional Teachers sitting now exposes the November 27 target for both Elementary and Secondary. Anonymous publication/version queries still find no release for that sitting, so the updated app derives Awaiting results. The December 1 Agriculturists target is December 10; the November written Dentistry target is December 14; the August Iloilo Professional Mechanical Engineers evaluation target is December 17. Blank or invalid targets remain unknown.
+
+The updated app was installed separately on the owner's phone as version 1.0.2, build 4. The phone disconnected before the post-deployment refresh; its next refresh reads the live fields. Hosted PRC connectivity remains intermittent, so this workstation refresh is not evidence that the hosted scan succeeded. Evidence and snapshots are retained privately under ignored `.development/live-publication-status/`.
+
 ## October 30, 2026 automatic PDF retrieval
 
 The owner's later instruction adds automatic PDF retrieval. Runtime [2b97d3f](https://github.com/j-davidv/ResView/commit/2b97d3fc09a380574ef52fdb297ee32e6a34263a) and [hosted run 41018013099](https://github.com/j-davidv/ResView/actions/runs/41018013099) passed 65 tests and the real Drive API download/extraction path. The 270,838-byte original matches its approved SHA-256, and independent public-client/all-selection read-backs confirm the same immutable names asset. Real names are absent from the job log.
