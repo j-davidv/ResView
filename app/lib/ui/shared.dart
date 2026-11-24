@@ -40,7 +40,7 @@ If you subscribe to emails, Brevo stores your email address and selected exam pr
 Delete local data in Settings to remove your exam selection, bookmarks, viewing history, and any files from earlier app versions. Email subscriptions and server push preferences have separate controls.''';
 
 String publicationLabel(PublicationState state) => switch (state) {
-  PublicationState.notReleased => 'Not released',
+  PublicationState.notReleased => 'No verified result announcement found',
   PublicationState.superseded => 'Updated publication',
   _ => 'Results released',
 };

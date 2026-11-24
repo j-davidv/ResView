@@ -25,6 +25,16 @@ class TestRepository implements ExamRepository {
   final SourceFreshness freshness;
   bool metadataUnavailable = false;
   bool catalogUnavailable = false, emptyHistory = false;
+  bool monitorUnavailable = false;
+  bool noVersion = false;
+  Sitting? sitting;
+  ResultMonitorStatus? monitorStatus;
+  @override
+  Future<ResultMonitorStatus?> loadResultMonitorStatus() async {
+    if (monitorUnavailable) throw const ServiceUnavailable();
+    return monitorStatus;
+  }
+
   final resultReads = <ExamSelection>[];
   final versionReads = <ExamSelection>[];
   Completer<List<Publication>>? pendingHistory;
@@ -41,15 +51,16 @@ class TestRepository implements ExamRepository {
 
   @override
   Future<List<Sitting>> loadSittings(String id) async => [
-    Sitting(
-      id: 'test-sitting',
-      examId: id,
-      start: DateTime.utc(2026, 10, 14),
-      end: DateTime.utc(2026, 10, 15),
-      type: 'overseas',
-      location: 'TEST ONLY location',
-      categories: {'general': 'General'},
-    ),
+    sitting ??
+        Sitting(
+          id: 'test-sitting',
+          examId: id,
+          start: DateTime.utc(2026, 10, 14),
+          end: DateTime.utc(2026, 10, 15),
+          type: 'overseas',
+          location: 'TEST ONLY location',
+          categories: {'general': 'General'},
+        ),
   ];
   @override
   Future<List<Publication>> loadPublications(ExamSelection selection) async {
@@ -75,6 +86,7 @@ class TestRepository implements ExamRepository {
     versionReads.add(selection);
     if (pendingVersion != null) return pendingVersion!.future;
     if (metadataUnavailable) throw const ServiceUnavailable();
+    if (noVersion) return null;
     return ResultVersion(
       selection: selection,
       state: state,
@@ -170,7 +182,7 @@ void main() {
       ExamApp(repository: repository, listStore: TestListStore()),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Refresh unavailable'), findsOneWidget);
+    expect(find.text("Couldn't refresh"), findsOneWidget);
     expect(find.text('View list of passers'), findsOneWidget);
     expect(find.text('Results released'), findsOneWidget);
   });
@@ -260,7 +272,7 @@ void main() {
       expect(find.text('TEST ONLY official result'), findsOneWidget);
       repository.pendingHistory!.complete([]);
       await tester.pumpAndSettle();
-      expect(find.text('Refresh unavailable'), findsOneWidget);
+      expect(find.text("Couldn't refresh"), findsOneWidget);
       expect(find.text('TEST ONLY official result'), findsOneWidget);
       expect(find.text('View list of passers'), findsOneWidget);
       expect(find.text('Not released'), findsNothing);
@@ -282,7 +294,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Results released'), findsOneWidget);
     expect(find.text('PRC announcement'), findsOneWidget);
-    expect(find.text('Refresh unavailable'), findsOneWidget);
+    expect(find.text("Couldn't refresh"), findsOneWidget);
   });
 
   testWidgets('known articles open while result-version metadata is pending', (
@@ -313,14 +325,68 @@ void main() {
         ExamApp(repository: repository, listStore: TestListStore()),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Publication status unavailable'), findsOneWidget);
+      expect(find.text("Couldn't refresh"), findsOneWidget);
       expect(find.text('Results released'), findsNothing);
       expect(find.text('Not released'), findsNothing);
       repository.metadataUnavailable = false;
       await tester.ensureVisible(find.text('Retry'));
       await tester.tap(find.text('Retry'));
       await tester.pumpAndSettle();
-      expect(find.text('Not released'), findsOneWidget);
+      expect(
+        find.text('No verified result announcement found'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'empty result snapshots survive failures and refreshed schedules replace targets',
+    (tester) async {
+      await PrivateStore().saveSelection(selection);
+      Sitting schedule(int year) => Sitting(
+        id: selection.sittingId,
+        examId: selection.examId,
+        start: DateTime.utc(2026, 9, 20),
+        end: DateTime.utc(2026, 9, 20),
+        type: 'domestic',
+        location: '',
+        categories: {'general': 'General'},
+        targetReleaseDate: DateTime.utc(year, 11, 27),
+      );
+      final repository = TestRepository(PublicationState.notReleased)
+        ..emptyHistory = true
+        ..noVersion = true
+        ..sitting = schedule(2099)
+        ..monitorStatus = ResultMonitorStatus(
+          freshness: 'stale',
+          lastSuccessfulCheckUtc: DateTime.utc(2026, 11, 23, 16, 33),
+        );
+      await tester.pumpWidget(
+        ExamApp(repository: repository, listStore: TestListStore()),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Awaiting results'), findsOneWidget);
+      expect(find.textContaining('27/11/2099'), findsOneWidget);
+      repository.sitting = schedule(2100);
+      repository.monitorUnavailable = true;
+      await tester.tap(find.byTooltip('Refresh available metadata'));
+      await tester.pumpAndSettle();
+      expect(find.text("Couldn't refresh"), findsOneWidget);
+      expect(find.text('Awaiting results'), findsOneWidget);
+      expect(find.textContaining('27/11/2099'), findsOneWidget);
+      expect(
+        find.text(
+          'Last successful PRC results check: 24/11/2026 00:33 UTC+08:00',
+        ),
+        findsOneWidget,
+      );
+      repository.monitorUnavailable = false;
+      await tester.tap(find.byTooltip('Refresh available metadata'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('27/11/2100'), findsOneWidget);
+      expect(find.textContaining('27/11/2099'), findsNothing);
+      expect(find.text("Couldn't refresh"), findsNothing);
+      expect(find.text('Results released'), findsNothing);
     },
   );
 

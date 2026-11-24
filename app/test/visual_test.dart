@@ -4,6 +4,7 @@ import 'package:app/main.dart';
 import 'package:app/domain/models.dart';
 import 'package:app/storage/private_store.dart';
 import 'package:app/ui/design.dart';
+import 'package:app/ui/results.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -63,6 +64,51 @@ void main() {
   }
 
   for (final brightness in Brightness.values) {
+    testWidgets('Teachers awaiting result target in ${brightness.name}', (
+      tester,
+    ) async {
+      configure(tester, const Size(390, 844), brightness, 1);
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: appTheme(brightness),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: ResultsScreen(
+                version: null,
+                now: DateTime.utc(2026, 11, 24),
+                monitorStatus: ResultMonitorStatus(
+                  freshness: 'fresh',
+                  lastSuccessfulCheckUtc: DateTime.utc(2026, 11, 23, 23, 30),
+                ),
+                sitting: Sitting(
+                  id: 'teachers-2026-09-20',
+                  examId: 'teachers',
+                  start: DateTime.utc(2026, 9, 20),
+                  end: DateTime.utc(2026, 9, 20),
+                  type: 'domestic',
+                  location: '',
+                  categories: {'elementary': 'Elementary'},
+                  targetReleaseDate: DateTime.utc(2026, 11, 27),
+                  catalogUrl: Uri.parse(
+                    'https://www.prc.gov.ph/2026-schedule-examination',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await settle(tester);
+      expect(find.text('Awaiting results'), findsOneWidget);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/awaiting-${brightness.name}.png'),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     for (final size in [const Size(412, 892), const Size(900, 1000)]) {
       for (final scale in [1.0, 2.0]) {
         final phone = size.width < 600;
@@ -136,10 +182,7 @@ void main() {
           await PrivateStore().saveSelection(selection);
           final repo = AdvisoryRepository()
             ..read = (_) async => AdvisoryFeed.fromJson(
-              snapshot(
-                stale: true,
-                checked: DateTime.utc(2026, 7, 31, 12, 30),
-              ),
+              snapshot(stale: true, checked: DateTime.utc(2026, 7, 31, 12, 30)),
             );
           await tester.pumpWidget(
             ExamApp(
@@ -172,7 +215,10 @@ void main() {
           await settle(tester);
           await tap(tester, find.byTooltip('Settings'));
           await tap(tester, find.text('Results').last);
-          expect(find.text('Not released'), findsOneWidget);
+          expect(
+            find.text('No verified result announcement found'),
+            findsOneWidget,
+          );
           expect(tester.takeException(), isNull);
         },
       );
@@ -182,22 +228,20 @@ void main() {
       tester,
     ) async {
       configure(tester, const Size(390, 844), brightness, 2);
-      FlutterSecureStorage.setMockInitialValues({'introSeen': 'true'});
-      await PrivateStore().saveSelection(
-        const ExamSelection('test-only', 'test-sitting', 'general'),
-      );
-      final repository = TestRepository(PublicationState.notReleased)
-        ..emptyHistory = true
-        ..metadataUnavailable = true;
       await tester.pumpWidget(
-        ExamApp(
-          repository: repository,
-          listStore: TestListStore(),
-          advisoryPilot: false,
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: appTheme(brightness),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: ResultsScreen(version: null, failed: true, onRetry: () {}),
+            ),
+          ),
         ),
       );
       await settle(tester);
-      expect(find.text('Publication status unavailable'), findsOneWidget);
+      expect(find.text("Couldn't refresh"), findsOneWidget);
       await tester.ensureVisible(find.text('Retry'));
       await settle(tester);
       await expectLater(

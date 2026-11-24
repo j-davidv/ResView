@@ -59,6 +59,8 @@ AdvisoryFeed _feed() => AdvisoryFeed.fromJson({
 
 class _Repository implements ExamRepository {
   @override
+  Future<ResultMonitorStatus?> loadResultMonitorStatus() async => null;
+  @override
   Future<List<Exam>> loadCatalog() async => [];
 
   @override

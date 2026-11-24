@@ -59,10 +59,14 @@ class Sitting {
     required this.type,
     required this.location,
     required this.categories,
+    this.targetReleaseDate,
+    this.catalogUrl,
   });
   final String id, examId, type, location;
   final DateTime start, end;
   final Map<String, String> categories;
+  final DateTime? targetReleaseDate;
+  final Uri? catalogUrl;
   String get label =>
       '${type[0].toUpperCase()}${type.substring(1)} · ${dateLabel(start)}${start == end ? '' : ' – ${dateLabel(end)}'}${location.isEmpty ? '' : ' · $location'}';
 }
@@ -142,6 +146,12 @@ class ResultVersion {
   final Uri? publicationUrl, documentUrl, namesUrl;
   final int? namesBytes;
   final String? namesSha256, reason;
+}
+
+class ResultMonitorStatus {
+  const ResultMonitorStatus({this.freshness, this.lastSuccessfulCheckUtc});
+  final String? freshness;
+  final DateTime? lastSuccessfulCheckUtc;
 }
 
 Uri publicUrl(String value) {

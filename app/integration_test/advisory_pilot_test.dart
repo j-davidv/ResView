@@ -56,7 +56,7 @@ void main() {
           advisoryPilot: true,
         ),
       );
-      await waitFor(find.text('Publication status unavailable'));
+      await waitFor(find.text('No verified result announcement found'));
       expect(find.text('Results released'), findsNothing);
       expect(find.byTooltip('Settings'), findsWidgets);
       await tester.tap(find.text('Updates').last);

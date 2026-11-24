@@ -11,6 +11,7 @@ Visual design follows the team's green ResView handoff. The current app browses 
 - Exam context shows the exam, sitting dates, Domestic/Special/Overseas type, location, applicable category, and Change action.
 - Results shows publication status and official links. A failed refresh identifies previously retrieved information. Legacy validation states never prevent opening an available official list. Do not display validation reasons or document-version hashes.
 - Source timestamps include Philippine time UTC+08:00. Refresh retrieves metadata and never fabricates a newer PRC source-check timestamp.
+- Unreleased sittings show Upcoming exam, Exam in progress, Awaiting results through the PRC target day, or No verified result announcement found. Show the optional target, schedule source and independent monitor check time. Stale or unknown checks carry an outdated-information notice. Verified releases take priority; reaching a target never implies release. Both exam and target boundaries use Philippine calendar days.
 - Use standard Material transitions and a subtle 120 ms filled-button press scale. Honor Remove animations. Progress conveys actual operation state.
 - Minimum 48 dp interaction targets, scalable scrollable dialogs, visible keyboard focus, TalkBack labels/headings/live status, system Back, and system insets.
 

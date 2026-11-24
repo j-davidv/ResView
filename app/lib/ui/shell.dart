@@ -292,7 +292,11 @@ class ExamShell extends StatelessWidget {
       destinations: [
         for (var i = 0; i < navigationTitles.length; i++)
           NavigationDestination(
-            icon: DesignIcon(_glyphs[i]),
+            icon: DesignIcon(
+              _glyphs[i] == DesignGlyph.updates
+                  ? DesignGlyph.megaphone
+                  : _glyphs[i],
+            ),
             label: _titles[i],
           ),
       ],
@@ -352,7 +356,9 @@ class ExamShell extends StatelessWidget {
                                 ),
                                 alignment: Alignment.center,
                                 child: DesignIcon(
-                                  _glyphs[index],
+                                  _glyphs[index] == DesignGlyph.updates
+                                      ? DesignGlyph.megaphone
+                                      : _glyphs[index],
                                   color: destination == index
                                       ? colors.primary
                                       : colors.onSurfaceVariant,

@@ -101,6 +101,10 @@ class _ExamHomeState extends State<_ExamHome> {
   bool get _inSettings => _destination == (widget.advisoryPilot ? 4 : 3);
   SelectedExam? _selected;
   ResultVersion? _version;
+  ResultMonitorStatus? _monitorStatus;
+  bool _hasResultsSnapshot = false;
+  bool get _hasResultsInformation =>
+      _hasResultsSnapshot || _version != null || _publications.isNotEmpty;
   List<Publication> _publications = [];
   bool _loading = false, _failed = false;
   String? _localError;
@@ -271,6 +275,8 @@ class _ExamHomeState extends State<_ExamHome> {
       if (_selected == null) _destination = 0;
       _selected = selected;
       _version = null;
+      _monitorStatus = null;
+      _hasResultsSnapshot = false;
       _publications = [];
       _restoringSelection = false;
       _selectionToRetry = null;
@@ -300,7 +306,7 @@ class _ExamHomeState extends State<_ExamHome> {
     });
     bool current() => mounted && generation == _generation;
     try {
-      final (publications, version) = await (
+      final (publications, version, monitorStatus, sittings) = await (
         widget.repository.loadPublications(selection).then((items) {
           if (current() && items.isNotEmpty) {
             setState(() => _publications = items);
@@ -315,10 +321,32 @@ class _ExamHomeState extends State<_ExamHome> {
           }
           return value;
         }),
+        widget.repository.loadResultMonitorStatus(),
+        widget.repository.loadSittings(selection.examId),
       ).wait;
       if (current()) {
+        final sitting = sittings
+            .where(
+              (s) =>
+                  s.id == selection.sittingId &&
+                  s.examId == selection.examId &&
+                  s.categories.containsKey(selection.categoryId),
+            )
+            .firstOrNull;
+        if (sitting == null) {
+          throw const FormatException(
+            'Selected sitting is no longer available.',
+          );
+        }
+        _selected = SelectedExam(
+          _selected!.exam,
+          sitting,
+          selection.categoryId,
+        );
         _publications = publications;
         _version = version;
+        _monitorStatus = monitorStatus;
+        _hasResultsSnapshot = true;
       }
     } catch (_) {
       if (current()) _failed = true;
@@ -378,6 +406,8 @@ class _ExamHomeState extends State<_ExamHome> {
           setState(() {
             _selected = null;
             _version = null;
+            _monitorStatus = null;
+            _hasResultsSnapshot = false;
             _publications = [];
             _generation++;
             _restoringSelection = false;
@@ -414,7 +444,7 @@ class _ExamHomeState extends State<_ExamHome> {
         revision: _advisoryRevision,
       );
     }
-    final hasPrevious = _version != null || _publications.isNotEmpty;
+    final hasPrevious = _hasResultsInformation;
     return ResultsScreen(
       version: _version,
       publications: _publications,
@@ -423,7 +453,10 @@ class _ExamHomeState extends State<_ExamHome> {
       examId: _selected!.exam.id,
       examName: _selected!.exam.title,
       sittingLabel: _selected!.details,
+      sitting: _selected!.sitting,
+      monitorStatus: _monitorStatus,
       loading: _loading && !hasPrevious,
+      failed: _failed && !hasPrevious,
       onRetry: _failed && !hasPrevious ? _refresh : null,
     );
   }
@@ -484,17 +517,13 @@ class _ExamHomeState extends State<_ExamHome> {
             ),
           if (_localError != null && _inSettings)
             Notice('Device preferences', _localError!),
-          if (_destination == 0 &&
-              _failed &&
-              (_version != null || _publications.isNotEmpty))
+          if (_destination == 0 && _failed && _hasResultsInformation)
             const Notice(
-              'Refresh unavailable',
+              "Couldn't refresh",
               'Showing previously retrieved information.',
               warning: true,
             ),
-          if (_destination == 0 &&
-              _loading &&
-              (_version != null || _publications.isNotEmpty))
+          if (_destination == 0 && _loading && _hasResultsInformation)
             const LinearProgressIndicator(),
           KeyedSubtree(key: ValueKey(_destination), child: _content()),
         ],

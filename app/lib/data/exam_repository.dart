@@ -6,6 +6,7 @@ abstract class ExamRepository {
   Future<List<Publication>> loadPublications(ExamSelection selection);
   Future<AdvisoryFeed?> loadAdvisories(String examId);
   Future<ResultVersion?> loadResultVersion(ExamSelection selection);
+  Future<ResultMonitorStatus?> loadResultMonitorStatus();
 }
 
 class ServiceUnavailable implements Exception {

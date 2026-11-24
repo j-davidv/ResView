@@ -88,7 +88,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(repo.reads, isEmpty);
-    expect(find.text('Not released'), findsOneWidget);
+    expect(find.text('No verified result announcement found'), findsOneWidget);
     await tester.tap(find.text('Updates').last);
     await tester.pumpAndSettle();
     expect(repo.reads, [selection.examId]);
@@ -125,7 +125,7 @@ void main() {
     expect(find.text('TEST ONLY postponement'), findsOneWidget);
     await tester.tap(find.text('Results').last);
     await tester.pumpAndSettle();
-    expect(find.text('Not released'), findsOneWidget);
+    expect(find.text('No verified result announcement found'), findsOneWidget);
     expect(find.text('Results released'), findsNothing);
   });
 

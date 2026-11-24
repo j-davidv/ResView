@@ -229,6 +229,7 @@ ThemeData appTheme(Brightness brightness) {
 
 enum DesignGlyph {
   updates('article-outline'),
+  megaphone('campaign-outline'),
   results('assignment-outline'),
   settings('settings-outline'),
   exam('school-outline'),

@@ -12,6 +12,8 @@ class SelectionRepository implements ExamRepository {
   @override
   Future<AdvisoryFeed?> loadAdvisories(String examId) async => null;
   @override
+  Future<ResultMonitorStatus?> loadResultMonitorStatus() async => null;
+  @override
   Future<List<Exam>> loadCatalog() async => [Exam('test-exam', title)];
 
   @override
