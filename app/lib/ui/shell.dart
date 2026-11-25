@@ -18,6 +18,8 @@ class ExamShell extends StatelessWidget {
     this.canRefresh = false,
     this.onRefresh,
     this.onBack,
+    this.onAlerts,
+    this.unreadAlerts = 0,
     super.key,
   });
 
@@ -45,6 +47,8 @@ class ExamShell extends StatelessWidget {
   final VoidCallback? onRefresh;
   final VoidCallback? onBack;
   final Widget child;
+  final VoidCallback? onAlerts;
+  final int unreadAlerts;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -69,6 +73,16 @@ class ExamShell extends StatelessWidget {
         icon: const DesignIcon(DesignGlyph.settings),
       );
       final back = BackButton(onPressed: onBack, color: Colors.white);
+      final alertsAction = IconButton(
+        tooltip: unreadAlerts == 0 ? 'Alerts' : 'Alerts ($unreadAlerts unread)',
+        color: Colors.white,
+        onPressed: onAlerts,
+        icon: Badge(
+          isLabelVisible: unreadAlerts > 0,
+          label: Text('$unreadAlerts'),
+          child: const DesignIcon(DesignGlyph.pushAlerts),
+        ),
+      );
       final showContext =
           !settings && !bookmarks && !inHistory && !restoringSelection;
       final contextCard = ExamContextCard(
@@ -101,6 +115,7 @@ class ExamShell extends StatelessWidget {
                     toolbarHeight: math.max(56, scaler.scale(28) + 8),
                     actions: [
                       if (canRefresh) refresh,
+                      if (onAlerts != null) alertsAction,
                       if (!settings) settingsAction,
                     ],
                   )
@@ -181,6 +196,8 @@ class ExamShell extends StatelessWidget {
                                                   ),
                                                 ),
                                                 if (canRefresh) refresh,
+                                                if (onAlerts != null)
+                                                  alertsAction,
                                                 if (!settings) settingsAction,
                                               ],
                                             ),

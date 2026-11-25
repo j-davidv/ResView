@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../alerts/push_preferences.dart';
+import '../alerts/alert_inbox.dart';
 import '../domain/models.dart';
 import '../storage/private_store.dart';
 import '../storage/list_store.dart';
@@ -19,6 +20,7 @@ class SettingsScreen extends StatefulWidget {
     required this.lists,
     this.bookmarks,
     this.history,
+    this.alerts,
     required this.push,
     required this.selection,
     required this.onChange,
@@ -32,6 +34,7 @@ class SettingsScreen extends StatefulWidget {
   final ListStore lists;
   final BookmarkLibrary? bookmarks;
   final HistoryLibrary? history;
+  final AlertInbox? alerts;
   final PushPreferences push;
   final ExamSelection? selection;
   final String? examTitle, examDetails;
@@ -100,7 +103,7 @@ class _SettingsState extends State<SettingsScreen> {
           scrollable: true,
           title: const Text('Enable push alerts?'),
           content: const Text(
-            'Get notifications on this phone about official PRC results and announcements for your selected exam.\n\nResView saves your exam choice to send alerts to this phone. You can turn them off anytime in Settings.',
+            'Get notifications on this phone about published results, official exam updates, and verified schedule changes for your selected exam.\n\nResView saves your exam choice to send alerts to this phone. You can turn them off anytime in Settings.',
           ),
           actions: [
             TextButton(
@@ -120,9 +123,7 @@ class _SettingsState extends State<SettingsScreen> {
       () => enabled
           ? widget.push.enable(widget.selection!)
           : widget.push.disable(),
-      enabled
-          ? 'Push alerts turned on.'
-          : 'Push alerts turned off.',
+      enabled ? 'Push alerts turned on.' : 'Push alerts turned off.',
     );
   }
 
@@ -250,13 +251,14 @@ class _SettingsState extends State<SettingsScreen> {
     if (await confirmDelete(
       context,
       'Delete local data?',
-      'Delete your saved exam selection, bookmarks, viewing history, and any files from earlier app versions. Email subscriptions and server push preferences are managed separately.',
+      'Delete your saved exam selection, bookmarks, viewing history, saved alerts, and any files from earlier app versions. Email subscriptions and server push preferences are managed separately.',
     )) {
       await _operation(() async {
         await widget.lists.clearAll();
         await widget.store.clearLocalValues(
           clearBookmarks: widget.bookmarks?.clearAll,
           clearHistory: widget.history?.clearAll,
+          clearAlerts: widget.alerts?.clear,
         );
         widget.onLocalDeleted();
       }, 'Local data deleted.');

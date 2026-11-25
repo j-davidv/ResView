@@ -95,12 +95,27 @@ class PrivateStore {
 
   Future<void> clearHistory() => _storage.delete(key: 'history');
 
+  Future<Map<String, dynamic>> readAlertState() async {
+    final value = await _storage.read(key: 'alerts');
+    if (value == null) return {};
+    return Map<String, dynamic>.from(jsonDecode(value) as Map);
+  }
+
+  Future<void> saveAlertState(Map<String, dynamic> state) =>
+      _storage.write(key: 'alerts', value: jsonEncode(state));
+
   Future<void> clearLocalValues({
     Future<void> Function()? clearBookmarks,
     Future<void> Function()? clearHistory,
+    Future<void> Function()? clearAlerts,
   }) async {
     await deleteName();
     await _storage.delete(key: 'selection');
+    if (clearAlerts == null) {
+      await _storage.delete(key: 'alerts');
+    } else {
+      await clearAlerts();
+    }
     // Libraries serialize these deletions with their pending writes and clear
     // their in-memory lists only after storage has been updated.
     if (clearBookmarks == null) {
