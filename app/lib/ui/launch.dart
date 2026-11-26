@@ -13,10 +13,11 @@ class _Logo extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) => SvgPicture.asset(
-    'assets/branding/resview-rv-clean.svg',
+  Widget build(BuildContext context) => Image.asset(
+    'assets/branding/resview-logo.png',
     width: size,
     height: size,
+    filterQuality: FilterQuality.medium,
     excludeFromSemantics: true,
   );
 }
