@@ -63,7 +63,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/branding/resview-rv-clean.svg
+    - assets/branding/
     - assets/fonts/OFL.txt
     - assets/icons/
 
