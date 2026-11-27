@@ -4,7 +4,7 @@ Open this folder as a Flutter project in Android Studio. Use a valid Android SDK
 
 From this folder run flutter analyze, flutter test, and flutter run -d <android-device-id>. Native checks: flutter test integration_test/app_test.dart -d <android-device-id>.
 
-Normal runs and builds enable Updates and use the live public Firestore catalog in `resview-9240c`. No extra `--dart-define` arguments or private Firebase credentials are required for browsing. Override `FIRESTORE_PUBLIC_PROJECT_ID` to use another public project, or set `RESVIEW_EXAM_UPDATES=false` to disable Updates. Push registration and email signup require separate configuration.
+Normal runs and builds enable Updates and use the live public Firestore catalog in `resview-9240c`. No extra `--dart-define` arguments or private Firebase credentials are required for browsing. Override `FIRESTORE_PUBLIC_PROJECT_ID` to use another public project, or set `RESVIEW_EXAM_UPDATES=false` to disable Updates. Push registration requires separate configuration.
 
 ## Exam alerts
 
@@ -21,3 +21,7 @@ Phone alerts require the Firebase Android app registered as `org.resview.app` in
 Messages from `worker.notifications` contain a notification payload for Android background delivery and validated data for foreground inbox display and source opening. Unrelated selections and non-PRC source URLs are ignored. Generic Firebase console tests show in the system tray in the background; add the worker's data fields to exercise foreground handling. See `worker/README.md` for automatic sending and its rollout requirements. No live sender is enabled by an app build alone.
 
 Runtime data comes only from live repositories. Unavailable services show honest unavailable states. Synthetic fixtures and screenshot references are restricted to tests. No PRC requests or real outbound messages are authorized by these setup instructions.
+
+## Release APK
+
+Run `flutter build apk --release` with the Android Firebase client configuration above and the private `android/key.properties` signing setup. Release builds require both files so a missing notification configuration cannot silently ship. Both files remain ignored by Git. The APK is written to `build/app/outputs/flutter-apk/app-release.apk`.

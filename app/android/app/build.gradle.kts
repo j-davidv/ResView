@@ -19,6 +19,7 @@ if (signingPropertiesFile.exists()) {
 gradle.taskGraph.whenReady {
     if (allTasks.any { it.name.contains("Release") }) {
         check(signingPropertiesFile.exists()) { "Release signing requires an ignored android/key.properties and a private keystore. Debug signing is forbidden for release." }
+        check(file("google-services.json").exists()) { "Release phone alerts require app/google-services.json for org.resview.app." }
     }
 }
 

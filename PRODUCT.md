@@ -8,7 +8,7 @@ android
 
 ## Stack
 
-Flutter / Dart / Material 3. Firebase Spark metadata and consent-based push preferences; official PRC and Google Drive source viewing; Python worker; Brevo hosted confirmed email subscriptions. Legacy Supabase name-list files are no longer consumed by the app.
+Flutter / Dart / Material 3. Firebase Spark metadata and consent-based push preferences; official PRC and Google Drive source viewing; Python worker. Legacy Supabase name-list files are no longer consumed by the app.
 
 ## Users and purpose
 

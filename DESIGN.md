@@ -19,7 +19,7 @@ Visual design follows the team's green ResView handoff. The current app browses 
 
 Selection uses searchable official exam choices, concrete sittings, and applicable categories. Results features the current PRC publication with its posting date and labeled lists. Other result publications follow in descending posting order and retain their own lists. Supported Google Drive documents retain manual Find text, Previous/Next matches, and browser fallback. Search reports text matches without inferring an exam outcome.
 
-Settings retains exam selection, optional alerts, independent email signup/unsubscribe instructions, privacy, local-data deletion, and retry of pending server deletion. No saved-name or offline checker-list controls remain. On upgrade, remove legacy saved names and checker files while preserving the exam preference and pending push-deletion intent.
+Settings retains exam selection, optional push alerts, privacy, local-data deletion, and retry of pending server deletion. No saved-name or offline checker-list controls remain. On upgrade, remove legacy saved names and checker files while preserving the exam preference and pending push-deletion intent.
 
 In Release 2, Updates follows Results. Show one latest exam update with its posting date, official title, known audience and source action. View all updates opens a scrollable history using the same cards and showing the exam title and coverage window. Both screens support large text and both themes.
 
@@ -37,4 +37,4 @@ In Release 2, Updates follows Results. Show one latest exam update with its post
 
 ## Service availability
 
-An email form launch is not proof of confirmation. Alert registration is not proof of delivery. Pending server deletion retains the anonymous identity and retry intent until acknowledged. Unconfigured services report unavailable; synthetic fixtures stay in tests. Physical-device checks and public release readiness remain separate from widget test results.
+Alert registration is not proof of delivery. Pending server deletion retains the anonymous identity and retry intent until acknowledged. Unconfigured services report unavailable; synthetic fixtures stay in tests. Physical-device checks and public release readiness remain separate from widget test results.

@@ -214,6 +214,9 @@ void main() {
           await tester.pageBack();
           await settle(tester);
           await tap(tester, find.byTooltip('Settings'));
+          expect(find.text('Push alerts'), findsOneWidget);
+          await tester.pageBack();
+          await settle(tester);
           await tap(tester, find.text('Results').last);
           expect(
             find.text('No verified result announcement found'),
