@@ -64,6 +64,7 @@ private class SourceView(context: Context, messenger: BinaryMessenger, id: Int, 
             builtInZoomControls = true
             displayZoomControls = false
             useWideViewPort = true
+            loadWithOverviewMode = true
             @Suppress("DEPRECATION")
             saveFormData = false
         }
@@ -107,6 +108,11 @@ private class SourceView(context: Context, messenger: BinaryMessenger, id: Int, 
                               if (viewport) viewport.content = 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5, user-scalable=yes';
                             })()
                         """.trimIndent(), null)
+                    } else {
+                        // PRC's page wrapper clips tables wider than the phone.
+                        view.evaluateJavascript(
+                            "document.querySelector('.off-canvas-wrapper')?.style.setProperty('overflow-x', 'auto')",
+                            null)
                     }
                     event("loaded", url)
                 }
