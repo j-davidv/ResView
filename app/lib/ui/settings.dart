@@ -45,7 +45,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsState extends State<SettingsScreen> {
-  static const _emailUrl = String.fromEnvironment('BREVO_SIGNUP_URL');
   final _detailRevision = ValueNotifier(0);
   bool _busy = false;
   String? _error;
@@ -163,71 +162,6 @@ class _SettingsState extends State<SettingsScreen> {
     );
   }
 
-  List<Widget> _emailDetails() => [
-    const Text(
-      'Get exam updates by email after confirming your subscription. To stop receiving them, use the unsubscribe link in an update email.',
-    ),
-    const SizedBox(height: 12),
-    if (_emailUrl.isEmpty)
-      const Notice(
-        'Email signup unavailable',
-        'The email signup service is not currently connected.',
-        glyph: DesignGlyph.email,
-      )
-    else
-      OutlinedButton.icon(
-        onPressed: _subscribeToEmail,
-        icon: const DesignIcon(DesignGlyph.externalLink),
-        label: const Text('Subscribe to emails'),
-      ),
-    const SizedBox(height: 8),
-    TextButton(
-      onPressed: () => showDialog<void>(
-        context: context,
-        builder: (dialog) => AlertDialog(
-          scrollable: true,
-          title: const Text('Unsubscribe from email updates'),
-          content: const Text(
-            'Open an email update from ResView, tap Unsubscribe at the bottom, and follow the instructions to stop receiving emails. Deleting local data or uninstalling ResView does not cancel your email subscription.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialog),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      ),
-      child: const Text('Unsubscribe from email updates'),
-    ),
-  ];
-
-  Future<void> _subscribeToEmail() async {
-    final consent = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        scrollable: true,
-        title: const Text('Subscribe to email updates?'),
-        content: const Text(
-          'Brevo stores your email address and selected exam preferences. Complete its form and confirmation email. Returning to this app does not confirm subscription.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('Open signup form'),
-          ),
-        ],
-      ),
-    );
-    if (consent == true && mounted) {
-      await openSource(context, Uri.parse(_emailUrl));
-    }
-  }
-
   List<Widget> _aboutDetails() => [
     const Text(
       'ResView helps you follow Philippine board exam results and announcements from the Professional Regulation Commission (PRC).',
@@ -251,7 +185,7 @@ class _SettingsState extends State<SettingsScreen> {
     if (await confirmDelete(
       context,
       'Delete local data?',
-      'Delete your saved exam selection, bookmarks, viewing history, saved alerts, and any files from earlier app versions. Email subscriptions and server push preferences are managed separately.',
+      'Delete your saved exam selection, bookmarks, viewing history, saved alerts, and any files from earlier app versions. Server push preferences are managed separately.',
     )) {
       await _operation(() async {
         await widget.lists.clearAll();
@@ -325,33 +259,17 @@ class _SettingsState extends State<SettingsScreen> {
       const Heading('Alerts'),
       DesignCard(
         padding: EdgeInsets.zero,
-        child: Column(
-          children: [
-            SwitchListTile(
-              secondary: const DesignIcon(DesignGlyph.pushAlerts),
-              title: const Text('Push alerts'),
-              subtitle: Metadata(
-                widget.restoringPush
-                    ? 'Checking alert settings…'
-                    : widget.push.status,
-              ),
-              value: widget.push.enabled,
-              onChanged: _busy || widget.restoringPush ? null : _push,
-            ),
-            const Divider(height: 1, indent: 8, endIndent: 8),
-            _SettingsRow(
-              DesignGlyph.email,
-              'Email updates',
-              subtitle: 'Managed separately',
-              onTap: () => _openDetails('Email updates', _emailDetails),
-            ),
-          ],
+        child: SwitchListTile(
+          secondary: const DesignIcon(DesignGlyph.pushAlerts),
+          title: const Text('Push alerts'),
+          subtitle: Metadata(
+            widget.restoringPush
+                ? 'Checking alert settings…'
+                : widget.push.status,
+          ),
+          value: widget.push.enabled,
+          onChanged: _busy || widget.restoringPush ? null : _push,
         ),
-      ),
-      const SizedBox(height: 8),
-      const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 12),
-        child: Metadata('Uninstalling does not unsubscribe you from email.'),
       ),
       const SizedBox(height: 16),
       DesignCard(
@@ -383,13 +301,11 @@ class _SettingsRow extends StatelessWidget {
     this.glyph,
     this.title, {
     required this.onTap,
-    this.subtitle,
     this.destructive = false,
   });
 
   final DesignGlyph glyph;
   final String title;
-  final String? subtitle;
   final VoidCallback? onTap;
   final bool destructive;
 
@@ -409,7 +325,6 @@ class _SettingsRow extends StatelessWidget {
         title,
         style: theme.textTheme.labelLarge?.copyWith(color: foreground),
       ),
-      subtitle: subtitle == null ? null : Metadata(subtitle!),
       trailing: const DesignIcon(DesignGlyph.next, size: 20),
       enabled: onTap != null,
       onTap: onTap,

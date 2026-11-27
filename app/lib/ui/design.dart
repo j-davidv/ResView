@@ -234,7 +234,6 @@ enum DesignGlyph {
   settings('settings-outline'),
   exam('school-outline'),
   pushAlerts('notifications-outline'),
-  email('mail-outline'),
   privacy('shield-outline'),
   delete('delete-outline'),
   info('info-outline'),

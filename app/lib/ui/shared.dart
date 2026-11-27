@@ -35,9 +35,7 @@ Opening an official source connects to PRC or Google Drive and requires internet
 
 If you enable push alerts, Firebase processes an anonymous account identifier, your exam preferences, and a device notification token.
 
-If you subscribe to emails, Brevo stores your email address and selected exam preferences to confirm your subscription and send updates. You can unsubscribe from an email.
-
-Delete local data in Settings to remove your exam selection, bookmarks, viewing history, saved alerts, and any files from earlier app versions. Email subscriptions and server push preferences have separate controls.''';
+Delete local data in Settings to remove your exam selection, bookmarks, viewing history, saved alerts, and any files from earlier app versions. Server push preferences have separate controls.''';
 
 String publicationLabel(PublicationState state) => switch (state) {
   PublicationState.notReleased => 'No verified result announcement found',

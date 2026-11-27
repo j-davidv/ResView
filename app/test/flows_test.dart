@@ -168,7 +168,10 @@ void main() {
       expect(find.text('Saved name'), findsNothing);
       expect(find.text('Offline lists'), findsNothing);
       expect(find.text('Push alerts'), findsOneWidget);
-      expect(find.text('Email updates'), findsOneWidget);
+      expect(
+        find.textContaining(RegExp('email', caseSensitive: false)),
+        findsNothing,
+      );
     },
   );
 
@@ -391,7 +394,7 @@ void main() {
   );
 
   testWidgets(
-    'settings keeps email accessible and About us focused on the overview',
+    'settings offers push alerts without email and keeps About us focused',
     (tester) async {
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(ExamApp(listStore: TestListStore()));
@@ -401,21 +404,11 @@ void main() {
       await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
       await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
       semantics.dispose();
-      await tester.ensureVisible(find.text('Email updates'));
-      await tester.tap(find.text('Email updates'));
-      await tester.pumpAndSettle();
-      expect(find.text('Email signup unavailable'), findsOneWidget);
-      await tester.ensureVisible(find.text('Unsubscribe from email updates'));
-      await tester.tap(find.text('Unsubscribe from email updates'));
-      await tester.pumpAndSettle();
+      expect(find.text('Push alerts'), findsOneWidget);
       expect(
-        find.textContaining('Open an email update from ResView'),
-        findsOneWidget,
+        find.textContaining(RegExp('email', caseSensitive: false)),
+        findsNothing,
       );
-      await tester.tap(find.text('Close'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Back'));
-      await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('About us'));
       await tester.tap(find.text('About us'));
       await tester.pumpAndSettle();

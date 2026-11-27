@@ -119,12 +119,10 @@ void main() {
           expect(find.text('Saved name'), findsNothing);
           expect(find.text('Offline lists'), findsNothing);
           expect(find.text('Push alerts'), findsOneWidget);
-          await tester.ensureVisible(find.text('Email updates'));
-          await tester.tap(find.text('Email updates'));
-          await tester.pumpAndSettle();
-          expect(find.text('Email signup unavailable'), findsOneWidget);
-          await tester.tap(find.byTooltip('Back'));
-          await tester.pumpAndSettle();
+          expect(
+            find.textContaining(RegExp('email', caseSensitive: false)),
+            findsNothing,
+          );
           expect(await store.readSelection(), selection);
           expect(tester.takeException(), isNull);
         } finally {

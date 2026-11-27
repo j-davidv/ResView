@@ -259,7 +259,7 @@ class WelcomeScreen extends StatelessWidget {
                               child: const _Instruction(
                                 DesignGlyph.pushAlerts,
                                 'Alerts are optional.',
-                                'Enable push or email in Settings.',
+                                'Enable push alerts in Settings.',
                                 useWell: false,
                               ),
                             ),
